@@ -171,7 +171,7 @@ public class LibraryActivity
 		int month = cal.get(Calendar.MONTH);
 		int year = cal.get(Calendar.YEAR);
 
-		if (month == 2 && year == 2015) { // January 2015
+		if (month == 9 && year == 2015) { // October 2015
 			((TextView) new AlertDialog.Builder(this)
 				.setTitle("Info")
 				.setIcon(android.R.drawable.ic_dialog_info)
