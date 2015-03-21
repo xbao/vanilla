@@ -181,7 +181,7 @@ public class LibraryActivity
 				"then tries to take down the <b>original</b> project (= us) by sending out a false DMCA takedown request to Google.<br>"+
 				"This evil plan seems to succeed in most cases: Google already removed Vanilla Music from the Play Store 5 (!) times.<br><br>"+
 				"As a small open source project, we do not have the time and energy to fight against this ridiculous behaviour of Google - but there is something YOU can do:<br>"+
-				"You can avoid Google and keep getting updates on Vanilla Music by switching to <a href='https://www.f-droid.org'>F-Droid</a>!"+
+				"You can avoid Google and keep getting updates of Vanilla Music by switching to <a href='https://www.f-droid.org'>F-Droid</a>!"+
 				"<br><br>" +
 				"Btw: The latest shady DMCA takedown notice can be seen <a href='https://github.com/vanilla-music/vanilla/blob/evil-empire/DMCA-TROLL.md'>here</a><br>"
 				))
