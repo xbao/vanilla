@@ -38,6 +38,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.webkit.WebViewFragment;
+import android.content.Context;
+import android.content.Intent;
+import android.media.audiofx.AudioEffect;
+import android.net.Uri;
 import java.util.List;
 
 /**
@@ -71,16 +75,6 @@ public class PreferencesActivity extends PreferenceActivity {
 		}
 	}
 
-	public static class AudioActivity extends PreferenceActivity {
-		@SuppressWarnings("deprecation")
-		@Override
-		public void onCreate(Bundle savedInstanceState)
-		{
-			super.onCreate(savedInstanceState);
-			addPreferencesFromResource(R.xml.preference_audio);
-		}
-	}
-
 	public static class AudioFragment extends PreferenceFragment {
 		@Override
 		public void onCreate(Bundle savedInstanceState)
@@ -90,19 +84,16 @@ public class PreferencesActivity extends PreferenceActivity {
 		}
 	}
 
-	public static class ReplayGainActivity extends PreferenceActivity {
-		@SuppressWarnings("deprecation")
-		
+	public static class ReplayGainFragment extends PreferenceFragment {
 		CheckBoxPreference cbTrackReplayGain;
 		CheckBoxPreference cbAlbumReplayGain;
 		SeekBarPreference sbGainBump;
 		SeekBarPreference sbUntaggedDebump;
-		
+
 		@Override
 		public void onCreate(Bundle savedInstanceState)
 		{
 			super.onCreate(savedInstanceState);
-			setTitle(R.string.replaygain);
 			addPreferencesFromResource(R.xml.preference_replaygain);
 			
 			cbTrackReplayGain = (CheckBoxPreference)findPreference(PrefKeys.ENABLE_TRACK_REPLAYGAIN);
@@ -122,13 +113,6 @@ public class PreferencesActivity extends PreferenceActivity {
 			updateConfigWidgets();
 		}
 
-		@Override
-		public boolean onOptionsItemSelected(MenuItem item)
-		{
-			finish();
-			return true;
-		}
-
 		private void updateConfigWidgets() {
 			boolean rgOn = (cbTrackReplayGain.isChecked() || cbAlbumReplayGain.isChecked());
 			sbGainBump.setEnabled(rgOn);
@@ -136,22 +120,29 @@ public class PreferencesActivity extends PreferenceActivity {
 		}
 	}
 
-	public static class ReplayGainFragment extends PreferenceFragment {
+	public static class EqualizerFragment extends PreferenceFragment {
 		@Override
 		public void onCreate(Bundle savedInstanceState)
 		{
 			super.onCreate(savedInstanceState);
-			addPreferencesFromResource(R.xml.preference_replaygain);
-		}
-	}
 
-	public static class PlaybackActivity extends PreferenceActivity {
-		@SuppressWarnings("deprecation")
-		@Override
-		public void onCreate(Bundle savedInstanceState)
-		{
-			super.onCreate(savedInstanceState);
-			addPreferencesFromResource(R.xml.preference_playback);
+			Context context = getActivity();
+			int mAudioSession = 0;
+			if (PlaybackService.hasInstance()) {
+				PlaybackService service = PlaybackService.get(context);
+				mAudioSession = service.getAudioSession();
+			}
+
+			try {
+				final Intent effects = new Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL);
+				effects.putExtra(AudioEffect.EXTRA_PACKAGE_NAME, context.getPackageName());
+				effects.putExtra(AudioEffect.EXTRA_AUDIO_SESSION, mAudioSession);
+				startActivityForResult(effects, 0);
+			} catch (Exception e) {
+				// ignored. Whee!
+			}
+
+			getActivity().finish();
 		}
 	}
 
@@ -164,34 +155,12 @@ public class PreferencesActivity extends PreferenceActivity {
 		}
 	}
 
-	public static class LibraryActivity extends PreferenceActivity {
-		@SuppressWarnings("deprecation")
-		@Override
-		public void onCreate(Bundle savedInstanceState)
-		{
-			super.onCreate(savedInstanceState);
-			addPreferencesFromResource(R.xml.preference_library);
-		}
-	}
-
 	public static class LibraryFragment extends PreferenceFragment {
 		@Override
 		public void onCreate(Bundle savedInstanceState)
 		{
 			super.onCreate(savedInstanceState);
 			addPreferencesFromResource(R.xml.preference_library);
-			PreferenceGroup group = getPreferenceScreen();
-			group.removePreference(group.findPreference("controls_in_selector"));
-		}
-	}
-
-	public static class NotificationsActivity extends PreferenceActivity {
-		@SuppressWarnings("deprecation")
-		@Override
-		public void onCreate(Bundle savedInstanceState)
-		{
-			super.onCreate(savedInstanceState);
-			addPreferencesFromResource(R.xml.preference_notifications);
 		}
 	}
 
@@ -204,32 +173,12 @@ public class PreferencesActivity extends PreferenceActivity {
 		}
 	}
 
-	public static class ShakeActivity extends PreferenceActivity {
-		@SuppressWarnings("deprecation")
-		@Override
-		public void onCreate(Bundle savedInstanceState)
-		{
-			super.onCreate(savedInstanceState);
-			addPreferencesFromResource(R.xml.preference_shake);
-		}
-	}
-
 	public static class ShakeFragment extends PreferenceFragment {
 		@Override
 		public void onCreate(Bundle savedInstanceState)
 		{
 			super.onCreate(savedInstanceState);
 			addPreferencesFromResource(R.xml.preference_shake);
-		}
-	}
-
-	public static class CoverArtActivity extends PreferenceActivity {
-		@SuppressWarnings("deprecation")
-		@Override
-		public void onCreate(Bundle savedInstanceState)
-		{
-			super.onCreate(savedInstanceState);
-			addPreferencesFromResource(R.xml.preference_coverart);
 		}
 	}
 
@@ -242,16 +191,6 @@ public class PreferencesActivity extends PreferenceActivity {
 		}
 	}
 
-	public static class MiscActivity extends PreferenceActivity {
-		@SuppressWarnings("deprecation")
-		@Override
-		public void onCreate(Bundle savedInstanceState)
-		{
-			super.onCreate(savedInstanceState);
-			addPreferencesFromResource(R.xml.preference_misc);
-		}
-	}
-
 	public static class MiscFragment extends PreferenceFragment {
 		@Override
 		public void onCreate(Bundle savedInstanceState)
@@ -261,28 +200,14 @@ public class PreferencesActivity extends PreferenceActivity {
 		}
 	}
 
-	public static class AboutActivity extends Activity {
-		@Override
-		public void onCreate(Bundle state)
-		{
-			super.onCreate(state);
-
-			WebView view = new WebView(this);
-			view.getSettings().setJavaScriptEnabled(true);
-			view.loadUrl("file:///android_asset/about.html");
-			view.setBackgroundColor(Color.TRANSPARENT);
-			setContentView(view);
-		}
-	}
-
 	public static class AboutFragment extends WebViewFragment {
 		@Override
 		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState)
 		{
 			WebView view = (WebView)super.onCreateView(inflater, container, savedInstanceState);
-			view.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
 			view.getSettings().setJavaScriptEnabled(true);
-			view.loadUrl("file:///android_asset/about.html");
+			String fontColor = getResources().getString(R.color.overlay_foreground_color);
+			view.loadUrl("file:///android_asset/about.html?"+Uri.encode(fontColor));
 			view.setBackgroundColor(Color.TRANSPARENT);
 			return view;
 		}

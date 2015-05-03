@@ -47,7 +47,6 @@ import android.provider.MediaStore;
 import android.support.v4.view.ViewPager;
 import android.text.Editable;
 import android.text.TextUtils;
-import android.text.TextWatcher;
 import android.view.ContextMenu;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -65,6 +64,7 @@ import android.widget.ListView;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.SearchView;
 
 import com.viewpagerindicator.TabPageIndicator;
 import java.io.File;
@@ -75,10 +75,16 @@ import junit.framework.Assert;
  */
 public class LibraryActivity
 	extends PlaybackActivity
-	implements TextWatcher
-	         , DialogInterface.OnClickListener
+	implements DialogInterface.OnClickListener
 	         , DialogInterface.OnDismissListener
+	         , SearchView.OnQueryTextListener
 {
+
+
+	/**
+	 * NOTE: ACTION_* must be in sync with default_action_entries
+	 */
+
 	/**
 	 * Action for row click: play the row.
 	 */
@@ -110,34 +116,30 @@ public class LibraryActivity
 	 */
 	public static final int ACTION_EXPAND = 6;
 	/**
+	 * Action for row click: play if paused or enqueue if playing.
+	 */
+	public static final int ACTION_PLAY_OR_ENQUEUE = 7;
+	/**
 	 * Action for row click: queue selection as next item
 	 */
-	public static final int ACTION_ENQUEUE_AS_NEXT = 7;
+	public static final int ACTION_ENQUEUE_AS_NEXT = 8;
 	/**
 	 * The SongTimeline add song modes corresponding to each relevant action.
 	 */
 	private static final int[] modeForAction =
 		{ SongTimeline.MODE_PLAY, SongTimeline.MODE_ENQUEUE, -1,
 		  SongTimeline.MODE_PLAY_ID_FIRST, SongTimeline.MODE_ENQUEUE_ID_FIRST,
-		  -1, -1, SongTimeline.MODE_ENQUEUE_AS_NEXT };
-
-	private static final String SEARCH_BOX_VISIBLE = "search_box_visible";
+		  -1, -1, -1, SongTimeline.MODE_ENQUEUE_AS_NEXT };
 
 	public ViewPager mViewPager;
 	private TabPageIndicator mTabs;
 
-	private View mSearchBox;
-	private boolean mSearchBoxVisible;
-
-	private TextView mTextFilter;
-	private View mClearButton;
-
 	private View mActionControls;
-	private View mControls;
 	private TextView mTitle;
 	private TextView mArtist;
 	private ImageView mCover;
 	private View mEmptyQueue;
+	private MenuItem mSearchMenuItem;
 
 	private HorizontalScrollView mLimiterScroller;
 	private ViewGroup mLimiterViews;
@@ -209,14 +211,6 @@ public class LibraryActivity
 
 		setContentView(R.layout.library_content);
 
-		mSearchBox = findViewById(R.id.search_box);
-
-		mTextFilter = (TextView)findViewById(R.id.filter_text);
-		mTextFilter.addTextChangedListener(this);
-
-		mClearButton = findViewById(R.id.clear_button);
-		mClearButton.setOnClickListener(this);
-
 		mLimiterScroller = (HorizontalScrollView)findViewById(R.id.limiter_scroller);
 		mLimiterViews = (ViewGroup)findViewById(R.id.limiter_layout);
 
@@ -259,10 +253,6 @@ public class LibraryActivity
 		super.onStart();
 
 		SharedPreferences settings = PlaybackService.getSettings(this);
-		if (settings.getBoolean(PrefKeys.CONTROLS_IN_SELECTOR, false) != (mControls != null)) {
-			finish();
-			startActivity(new Intent(this, LibraryActivity.class));
-		}
 		mDefaultAction = Integer.parseInt(settings.getString(PrefKeys.DEFAULT_ACTION_INT, "7"));
 		mLastActedId = LibraryAdapter.INVALID_ID;
 		updateHeaders();
@@ -321,66 +311,55 @@ public class LibraryActivity
 	}
 
 	@Override
-	public void onRestoreInstanceState(Bundle in)
-	{
-		if (in.getBoolean(SEARCH_BOX_VISIBLE))
-			setSearchBoxVisible(true);
-		super.onRestoreInstanceState(in);
-	}
-
-	@Override
-	protected void onSaveInstanceState(Bundle out)
-	{
-		super.onSaveInstanceState(out);
-		out.putBoolean(SEARCH_BOX_VISIBLE, mSearchBoxVisible);
-	}
-
-	@Override
 	public boolean onKeyUp(int keyCode, KeyEvent event)
 	{
 		switch (keyCode) {
 		case KeyEvent.KEYCODE_BACK:
-			if (mSearchBoxVisible) {
-				mTextFilter.setText("");
-				setSearchBoxVisible(false);
-			} else {
-				Limiter limiter = mPagerAdapter.getCurrentLimiter();
-				if (limiter != null) {
-					int pos = -1;
-					switch (limiter.type) {
-					case MediaUtils.TYPE_ALBUM:
-						setLimiter(MediaUtils.TYPE_ARTIST, limiter.data.toString());
-						pos = mPagerAdapter.mAlbumsPosition;
-						break;
-					case MediaUtils.TYPE_ARTIST:
-						mPagerAdapter.clearLimiter(MediaUtils.TYPE_ARTIST);
-						pos = mPagerAdapter.mArtistsPosition;
-						break;
-					case MediaUtils.TYPE_GENRE:
-						mPagerAdapter.clearLimiter(MediaUtils.TYPE_GENRE);
-						pos = mPagerAdapter.mGenresPosition;
-						break;
-					case MediaUtils.TYPE_FILE:
-						if(limiter.names.length > 1) {
-							File parentFile = ((File)limiter.data).getParentFile();
-							mPagerAdapter.setLimiter(FileSystemAdapter.buildLimiter(parentFile));
-						} else {
-							mPagerAdapter.clearLimiter(MediaUtils.TYPE_FILE);
-						}
-						break;
-					}
-					if (pos == -1) {
-						updateLimiterViews();
-					} else {
-						mViewPager.setCurrentItem(pos);
-					}
-				} else {
-					finish();
+			Limiter limiter = mPagerAdapter.getCurrentLimiter();
+			MenuItem menu_item = mSearchMenuItem;
+
+			if (menu_item != null) {
+				// Check if we can collapse the search view
+				// if we can, then it was open and we handled this
+				// action
+				boolean did_collapse = menu_item.collapseActionView();
+				if (did_collapse == true) {
+					break;
 				}
 			}
-			break;
-		case KeyEvent.KEYCODE_SEARCH:
-			setSearchBoxVisible(!mSearchBoxVisible);
+
+			if (limiter != null) {
+				int pos = -1;
+				switch (limiter.type) {
+				case MediaUtils.TYPE_ALBUM:
+					setLimiter(MediaUtils.TYPE_ARTIST, limiter.data.toString());
+					pos = mPagerAdapter.mAlbumsPosition;
+					break;
+				case MediaUtils.TYPE_ARTIST:
+					mPagerAdapter.clearLimiter(MediaUtils.TYPE_ARTIST);
+					pos = mPagerAdapter.mArtistsPosition;
+					break;
+				case MediaUtils.TYPE_GENRE:
+					mPagerAdapter.clearLimiter(MediaUtils.TYPE_GENRE);
+					pos = mPagerAdapter.mGenresPosition;
+					break;
+				case MediaUtils.TYPE_FILE:
+					if(limiter.names.length > 1) {
+						File parentFile = ((File)limiter.data).getParentFile();
+						mPagerAdapter.setLimiter(FileSystemAdapter.buildLimiter(parentFile));
+					} else {
+						mPagerAdapter.clearLimiter(MediaUtils.TYPE_FILE);
+					}
+					break;
+				}
+				if (pos == -1) {
+					updateLimiterViews();
+				} else {
+					mViewPager.setCurrentItem(pos);
+				}
+			} else {
+				finish();
+			}
 			break;
 		default:
 			return false;
@@ -400,14 +379,6 @@ public class LibraryActivity
 
 		if (super.onKeyDown(keyCode, event))
 			return true;
-
-		if (mTextFilter.onKeyDown(keyCode, event)) {
-			if (!mSearchBoxVisible)
-				setSearchBoxVisible(true);
-			else
-				mTextFilter.requestFocus();
-			return true;
-		}
 
 		return false;
 	}
@@ -510,6 +481,8 @@ public class LibraryActivity
 				// default to playing when trying to expand something that can't
 				// be expanded
 				action = ACTION_PLAY;
+			} else if (action == ACTION_PLAY_OR_ENQUEUE) {
+				action = (mState & PlaybackService.FLAG_PLAYING) == 0 ? ACTION_PLAY : ACTION_ENQUEUE;
 			}
 			pickSongs(rowData, action);
 		}
@@ -527,22 +500,6 @@ public class LibraryActivity
 			editPlaylist(rowData);
 		else
 			expand(rowData);
-	}
-
-	@Override
-	public void afterTextChanged(Editable editable)
-	{
-	}
-
-	@Override
-	public void beforeTextChanged(CharSequence s, int start, int count, int after)
-	{
-	}
-
-	@Override
-	public void onTextChanged(CharSequence text, int start, int before, int count)
-	{
-		mPagerAdapter.setFilter(text.toString());
 	}
 
 	/**
@@ -584,12 +541,7 @@ public class LibraryActivity
 	@Override
 	public void onClick(View view)
 	{
-		if (view == mClearButton) {
-			if (mTextFilter.getText().length() == 0)
-				setSearchBoxVisible(false);
-			else
-				mTextFilter.setText("");
-		} else if (view == mCover || view == mActionControls) {
+		if (view == mCover || view == mActionControls) {
 			openPlaybackActivity();
 		} else if (view == mEmptyQueue) {
 			setState(PlaybackService.get(this).setFinishAction(SongTimeline.FINISH_RANDOM));
@@ -800,6 +752,7 @@ public class LibraryActivity
 				.setMessage(delete_message)
 				.setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
 					public void onClick(DialogInterface dialog, int id) {
+						mPagerAdapter.maintainState(); // remember current scrolling position
 						mHandler.sendMessage(mHandler.obtainMessage(MSG_DELETE, intent));
 					}
 				})
@@ -858,11 +811,16 @@ public class LibraryActivity
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu)
 	{
-		MenuItem controls = menu.add(null);
-		CompatHoneycomb.setActionView(controls, mActionControls);
-		CompatHoneycomb.setShowAsAction(controls, MenuItem.SHOW_AS_ACTION_ALWAYS);
-		MenuItem search = menu.add(0, MENU_SEARCH, 0, R.string.search).setIcon(R.drawable.ic_menu_search);
-		CompatHoneycomb.setShowAsAction(search, MenuItem.SHOW_AS_ACTION_IF_ROOM);
+		MenuItem controls = menu.add(0, MENU_PLAYBACK, 0, R.string.playback_view);
+		controls.setActionView(mActionControls);
+		controls.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+
+		mSearchMenuItem = menu.add(0, MENU_SEARCH, 0, R.string.search).setIcon(R.drawable.ic_menu_search);
+		mSearchMenuItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW | MenuItem.SHOW_AS_ACTION_ALWAYS);
+		SearchView mSearchView = new SearchView(getActionBar().getThemedContext());
+		mSearchView.setOnQueryTextListener(this);
+		mSearchMenuItem.setActionView(mSearchView);
+
 		menu.add(0, MENU_SORT, 0, R.string.sort_by).setIcon(R.drawable.ic_menu_sort_alphabetically);
 		return super.onCreateOptionsMenu(menu);
 	}
@@ -880,7 +838,7 @@ public class LibraryActivity
 	{
 		switch (item.getItemId()) {
 		case MENU_SEARCH:
-			setSearchBoxVisible(!mSearchBoxVisible);
+			// this does nothing: expanding ishandled by mSearchView
 			return true;
 		case MENU_PLAYBACK:
 			openPlaybackActivity();
@@ -923,6 +881,24 @@ public class LibraryActivity
 	}
 
 	/**
+	 * Callback of mSearchView while user types in text
+	 */
+	@Override
+	public boolean onQueryTextChange (String newText) {
+		mPagerAdapter.setFilter(newText);
+		return true;
+	}
+
+	/**
+	 * Callback of mSearchViews submit action
+	 */
+	@Override
+	public boolean onQueryTextSubmit (String query) {
+		mPagerAdapter.setFilter(query);
+		return true;
+	}
+
+	/**
 	 * Save the current page, passed in arg1, to SharedPreferences.
 	 */
 	private static final int MSG_SAVE_PAGE = 12;
@@ -950,40 +926,11 @@ public class LibraryActivity
 		mPagerAdapter.invalidateData();
 	}
 
-	private void setSearchBoxVisible(boolean visible)
-	{
-		mSearchBoxVisible = visible;
-		mSearchBox.setVisibility(visible ? View.VISIBLE : View.GONE);
-		if (mControls != null) {
-			mControls.setVisibility(visible || (mState & PlaybackService.FLAG_NO_MEDIA) != 0 ? View.GONE : View.VISIBLE);
-		} else if (mActionControls != null) {
-			// try to hide the bottom action bar
-			ViewParent parent = mActionControls.getParent();
-			if (parent != null)
-				parent = parent.getParent();
-			if (parent != null && parent instanceof ViewGroup) {
-				ViewGroup ab = (ViewGroup)parent;
-				if (ab.getChildCount() == 1) {
-					ab.setVisibility(visible ? View.GONE : View.VISIBLE);
-				}
-			}
-		}
-
-		if (visible) {
-			mTextFilter.requestFocus();
-			((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(mTextFilter, 0);
-		}
-	}
-
 	@Override
 	protected void onStateChange(int state, int toggled)
 	{
 		super.onStateChange(state, toggled);
 
-		if ((toggled & PlaybackService.FLAG_NO_MEDIA) != 0) {
-			// update visibility of controls
-			setSearchBoxVisible(mSearchBoxVisible);
-		}
 		if ((toggled & PlaybackService.FLAG_EMPTY_QUEUE) != 0 && mEmptyQueue != null) {
 			mEmptyQueue.setVisibility((state & PlaybackService.FLAG_EMPTY_QUEUE) == 0 ? View.GONE : View.VISIBLE);
 		}

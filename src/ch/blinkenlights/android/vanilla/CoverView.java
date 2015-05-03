@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 Christopher Eby <kreed@kreed.org>
+ * Copyright (C) 2015 Adrian Ulrich <adrian@blinkenlights.ch>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -210,13 +211,12 @@ public final class CoverView extends View implements Handler.Callback {
 		int height = getHeight();
 		int x = 0;
 		int scrollX = mScrollX;
-
-		canvas.drawColor(Color.BLACK);
+		double padding = 14 * sDensity;
 
 		for (Bitmap bitmap : mActiveBitmaps) {
 			if (bitmap != null && scrollX + width > x && scrollX < x + width) {
 				int xOffset = (width - bitmap.getWidth()) / 2;
-				int yOffset = (height - bitmap.getHeight()) / 2;
+				int yOffset = (int)(padding + (height - bitmap.getHeight()) / 2);
 				canvas.drawBitmap(bitmap, x + xOffset - scrollX, yOffset, null);
 			}
 			x += width;
@@ -368,7 +368,7 @@ public final class CoverView extends View implements Handler.Callback {
 		if (cover == null && style == CoverBitmap.STYLE_NO_INFO) {
 			Bitmap def = mDefaultCover;
 			if (def == null) {
-				mDefaultCover = def = CoverBitmap.generateDefaultCover(getWidth(), getHeight());
+				mDefaultCover = def = CoverBitmap.generateDefaultCover(context, getWidth(), getHeight());
 			}
 			mBitmaps[i] = def;
 		} else {

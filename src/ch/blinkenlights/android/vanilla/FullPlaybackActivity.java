@@ -252,8 +252,9 @@ public class FullPlaybackActivity extends PlaybackActivity
 	{
 		if (mOverlayText == null) {
 			TextView view = new TextView(this);
-			view.setBackgroundColor(Color.BLACK);
-			view.setTextColor(Color.WHITE);
+			// This will be drawn on top of all other controls, so we flood this view
+			// with a non-alpha color
+			view.setBackgroundResource(R.color.defaultcover_background);
 			view.setGravity(Gravity.CENTER);
 			view.setPadding(25, 25, 25, 25);
 			// Make the view clickable so it eats touch events
@@ -359,7 +360,7 @@ public class FullPlaybackActivity extends PlaybackActivity
 	public boolean onCreateOptionsMenu(Menu menu)
 	{
 		super.onCreateOptionsMenu(menu);
-		menu.add(0, MENU_CLEAR_QUEUE, 0, R.string.clear_queue).setIcon(R.drawable.ic_menu_close_clear_cancel);
+		menu.add(0, MENU_CLEAR_QUEUE, 0, R.string.dequeue_rest).setIcon(R.drawable.ic_menu_close_clear_cancel);
 		menu.add(0, MENU_DELETE, 0, R.string.delete);
 		menu.add(0, MENU_ENQUEUE_ALBUM, 0, R.string.enqueue_current_album).setIcon(R.drawable.ic_menu_add);
 		menu.add(0, MENU_ENQUEUE_ARTIST, 0, R.string.enqueue_current_artist).setIcon(R.drawable.ic_menu_add);

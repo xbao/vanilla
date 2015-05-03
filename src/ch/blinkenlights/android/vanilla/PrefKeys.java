@@ -27,7 +27,6 @@ package ch.blinkenlights.android.vanilla;
  * SharedPreference keys. Must be kept in sync with keys in res/xml/prefs_*.xml.
  */
 public class PrefKeys {
-	public static final String CONTROLS_IN_SELECTOR = "controls_in_selector";
 	public static final String COVER_LONGPRESS_ACTION = "cover_longpress_action";
 	public static final String COVER_PRESS_ACTION = "cover_press_action";
 	public static final String DEFAULT_ACTION_INT = "default_action_int";
@@ -40,6 +39,7 @@ public class PrefKeys {
 	public static final String DOUBLE_TAP = "double_tap";
 	public static final String ENABLE_SHAKE = "enable_shake";
 	public static final String HEADSET_ONLY = "headset_only";
+	public static final String CYCLE_CONTINUOUS_SHUFFLING = "cycle_continuous_shuffling";
 	public static final String HEADSET_PAUSE = "headset_pause";
 	public static final String IDLE_TIMEOUT = "idle_timeout";
 	public static final String LIBRARY_PAGE = "library_page";
@@ -63,4 +63,5 @@ public class PrefKeys {
 	public static final String REPLAYGAIN_BUMP = "replaygain_bump";
 	public static final String REPLAYGAIN_UNTAGGED_DEBUMP = "replaygain_untagged_debump";
 	public static final String ENABLE_READAHEAD = "enable_readahead";
+	public static final String USE_LIGHT_THEME = "light_theme";
 }

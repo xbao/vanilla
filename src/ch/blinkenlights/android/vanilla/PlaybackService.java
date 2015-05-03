@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014 Adrian Ulrich <adrian@blinkenlights.ch>
+ * Copyright (C) 2012-2015 Adrian Ulrich <adrian@blinkenlights.ch>
  * Copyright (C) 2010, 2011 Christopher Eby <kreed@kreed.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -43,7 +43,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.media.audiofx.AudioEffect;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Build;
@@ -201,10 +200,13 @@ public final class PlaybackService extends Service
 	 */
 	private static final int MIN_SHAKE_PERIOD = 500;
 	/**
-	 * Defer release of mWakeLock for this time (in ms).
+	 * Defer entering deep sleep for this time (in ms).
 	 */
-	private static final int WAKE_LOCK_DELAY = 60000;
-
+	private static final int SLEEP_STATE_DELAY = 60000;
+	/**
+	 * Save the current playlist state on queue changes after this time (in ms).
+	 */
+	private static final int SAVE_STATE_DELAY = 5000;
 	/**
 	 * If set, music will play.
 	 */
@@ -223,27 +225,27 @@ public final class PlaybackService extends Service
 	public static final int FLAG_EMPTY_QUEUE = 0x8;
 	public static final int SHIFT_FINISH = 4;
 	/**
-	 * These two bits will be one of SongTimeline.FINISH_*.
+	 * These three bits will be one of SongTimeline.FINISH_*.
 	 */
 	public static final int MASK_FINISH = 0x7 << SHIFT_FINISH;
 	public static final int SHIFT_SHUFFLE = 7;
 	/**
-	 * These two bits will be one of SongTimeline.SHUFFLE_*.
+	 * These three bits will be one of SongTimeline.SHUFFLE_*.
 	 */
-	public static final int MASK_SHUFFLE = 0x3 << SHIFT_SHUFFLE;
+	public static final int MASK_SHUFFLE = 0x7 << SHIFT_SHUFFLE;
 
 	/**
 	 * The PlaybackService state, indicating if the service is playing,
 	 * repeating, etc.
 	 *
-	 * The format of this is 0b00000000_00000000_00000000f_feeedcba,
+	 * The format of this is 0b00000000_00000000_0000000ff_feeedcba,
 	 * where each bit is:
 	 *     a:   {@link PlaybackService#FLAG_PLAYING}
 	 *     b:   {@link PlaybackService#FLAG_NO_MEDIA}
 	 *     c:   {@link PlaybackService#FLAG_ERROR}
 	 *     d:   {@link PlaybackService#FLAG_EMPTY_QUEUE}
 	 *     eee: {@link PlaybackService#MASK_FINISH}
-	 *     ff:  {@link PlaybackService#MASK_SHUFFLE}
+	 *     fff: {@link PlaybackService#MASK_SHUFFLE}
 	 */
 	int mState;
 	
@@ -294,12 +296,17 @@ public final class PlaybackService extends Service
 	 * {@link PlaybackService#createNotificationAction(SharedPreferences)}.
 	 */
 	private PendingIntent mNotificationAction;
+	/**
+	 * If true, use SongTimeline.SHUFFLE_CONTINUOUS while cycling shuffle modes
+	 */
+	private boolean mCycleContinuousShuffling;
 
 	private Looper mLooper;
 	private Handler mHandler;
-	MediaPlayer mMediaPlayer;
-	MediaPlayer mPreparedMediaPlayer;
+	VanillaMediaPlayer mMediaPlayer;
+	VanillaMediaPlayer mPreparedMediaPlayer;
 	private boolean mMediaPlayerInitialized;
+	private boolean mMediaPlayerAudioFxActive;
 	private PowerManager.WakeLock mWakeLock;
 	private NotificationManager mNotificationManager;
 	private AudioManager mAudioManager;
@@ -400,6 +407,10 @@ public final class PlaybackService extends Service
 		mPlayCounts = new PlayCountsHelper(this);
 
 		mMediaPlayer = getNewMediaPlayer();
+		mPreparedMediaPlayer = getNewMediaPlayer();
+		// We only have a single audio session
+		mPreparedMediaPlayer.setAudioSessionId(mMediaPlayer.getAudioSessionId());
+
 		mBastpUtil = new BastpUtil();
 		mReadahead = new ReadaheadThread();
 		mReadahead.start();
@@ -418,6 +429,7 @@ public final class PlaybackService extends Service
 		Song.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_SHADOW , true) ? Song.mCoverLoadMode | Song.COVER_MODE_SHADOW  : Song.mCoverLoadMode & ~(Song.COVER_MODE_SHADOW);
 
 		mHeadsetOnly = settings.getBoolean(PrefKeys.HEADSET_ONLY, false);
+		mCycleContinuousShuffling = settings.getBoolean(PrefKeys.CYCLE_CONTINUOUS_SHUFFLING, false);
 		mStockBroadcast = settings.getBoolean(PrefKeys.STOCK_BROADCAST, false);
 		mNotificationAction = createNotificationAction(settings);
 		mHeadsetPause = getSettings(this).getBoolean(PrefKeys.HEADSET_PAUSE, true);
@@ -547,14 +559,17 @@ public final class PlaybackService extends Service
 		// clear the notification
 		stopForeground(true);
 
+		// defer wakelock and close audioFX
+		enterSleepState();
+
 		if (mMediaPlayer != null) {
-			saveState(mMediaPlayer.getCurrentPosition());
-			Intent i = new Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION);
-			i.putExtra(AudioEffect.EXTRA_AUDIO_SESSION, mMediaPlayer.getAudioSessionId());
-			i.putExtra(AudioEffect.EXTRA_PACKAGE_NAME, getPackageName());
-			sendBroadcast(i);
 			mMediaPlayer.release();
 			mMediaPlayer = null;
+		}
+
+		if (mPreparedMediaPlayer != null) {
+			mPreparedMediaPlayer.release();
+			mPreparedMediaPlayer = null;
 		}
 
 		MediaButtonReceiver.unregisterMediaButton(this);
@@ -565,11 +580,8 @@ public final class PlaybackService extends Service
 			// we haven't registered the receiver yet
 		}
 
-		if (mSensorManager != null && mShakeAction != Action.Nothing)
+		if (mSensorManager != null)
 			mSensorManager.unregisterListener(this);
-
-		if (mWakeLock != null && mWakeLock.isHeld())
-			mWakeLock.release();
 
 		super.onDestroy();
 	}
@@ -577,24 +589,18 @@ public final class PlaybackService extends Service
 	/**
 	 * Returns a new MediaPlayer object
 	 */
-	private MediaPlayer getNewMediaPlayer() {
-		MediaPlayer mp = new MediaPlayer();
+	private VanillaMediaPlayer getNewMediaPlayer() {
+		VanillaMediaPlayer mp = new VanillaMediaPlayer(this);
 		mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
 		mp.setOnCompletionListener(this);
 		mp.setOnErrorListener(this);
 		return mp;
 	}
 	
-	public void prepareMediaPlayer(MediaPlayer mp, String path) throws IOException{
+	public void prepareMediaPlayer(VanillaMediaPlayer mp, String path) throws IOException{
 		mp.setDataSource(path);
 		mp.prepare();
-		
-		Intent i = new Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION);
-		i.putExtra(AudioEffect.EXTRA_AUDIO_SESSION, mp.getAudioSessionId());
-		i.putExtra(AudioEffect.EXTRA_PACKAGE_NAME, getPackageName());
-		sendBroadcast(i);
-		
-		applyReplayGain(mp, path);
+		applyReplayGain(mp);
 	}
 	
 	
@@ -603,23 +609,17 @@ public final class PlaybackService extends Service
 	 * the (maybe just changed) user settings
 	*/
 	private void refreshReplayGainValues() {
-		Song curSong = getSong(0);
-		
-		if(mMediaPlayer == null)
-			return;
-		if(curSong == null)
-			return;
-
-		applyReplayGain(mMediaPlayer, curSong.path);
-		if(mPreparedMediaPlayer != null) {
-			applyReplayGain(mPreparedMediaPlayer, getSong(1).path);
-		}
+		applyReplayGain(mMediaPlayer);
+		applyReplayGain(mPreparedMediaPlayer);
 	}
 
-	
-	private void applyReplayGain(MediaPlayer mp, String path) {
+	/***
+	 * Reads the replay gain value of the media players data source
+	 * and adjusts the volume
+	 */
+	private void applyReplayGain(VanillaMediaPlayer mp) {
 		
-		float[] rg = getReplayGainValues(path); /* track, album */
+		float[] rg = getReplayGainValues(mp.getDataSource()); /* track, album */
 		float adjust = 0f;
 		
 		if(mReplayGainAlbumEnabled) {
@@ -665,44 +665,90 @@ public final class PlaybackService extends Service
 	}
 
 	/**
+	 * Prepares PlaybackService to sleep / shutdown
+	 * Closes any open AudioFX session and releases
+	 * our wakelock if held
+	 */
+	private void enterSleepState()
+	{
+		if (mMediaPlayer != null) {
+			if (mMediaPlayerAudioFxActive) {
+				mMediaPlayer.closeAudioFx();
+				mMediaPlayerAudioFxActive = false;
+			}
+			saveState(mMediaPlayer.getCurrentPosition());
+		}
+
+		if (mWakeLock != null && mWakeLock.isHeld())
+			mWakeLock.release();
+	}
+
+	/**
 	 * Destroys any currently prepared MediaPlayer and
 	 * re-creates a newone if needed.
 	 */
 	private void triggerGaplessUpdate() {
-
 		if(mMediaPlayerInitialized != true)
 			return;
 		
 		if(Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN)
 			return; /* setNextMediaPlayer is supported since JB */
-		
-		if(mPreparedMediaPlayer != null) {
-			/* an old prepared player exists and is
-			 * most likely invalid -> destroy it now
-			*/
-			mMediaPlayer.setNextMediaPlayer(null);
-			mPreparedMediaPlayer.release();
-			mPreparedMediaPlayer = null;
-		}
-		
+
+		boolean doGapless = false;
 		int fa = finishAction(mState);
 		Song nextSong = getSong(1);
+
 		if( nextSong != null
-		    && fa != SongTimeline.FINISH_REPEAT_CURRENT
-		    && fa != SongTimeline.FINISH_STOP_CURRENT
-		    && !mTimeline.isEndOfQueue() ) {
-			try {
-				mPreparedMediaPlayer = getNewMediaPlayer();
-				prepareMediaPlayer(mPreparedMediaPlayer, nextSong.path);
-				mMediaPlayer.setNextMediaPlayer(mPreparedMediaPlayer);
-				Log.d("VanillaMusic", "New media player prepared with path "+nextSong.path);
-			} catch (IOException e) {
-				Log.e("VanillaMusic", "IOException", e);
-			}
+		 && nextSong.path != null
+		 && fa != SongTimeline.FINISH_REPEAT_CURRENT
+		 && fa != SongTimeline.FINISH_STOP_CURRENT
+		 && !mTimeline.isEndOfQueue() ) {
+			doGapless = true;
 		}
 		else {
 			Log.d("VanillaMusic", "Must not create new media player object");
 		}
+
+		vLog("VanillaMusic", "A>>  hasNext="+mMediaPlayer.hasNextMediaPlayer()+", ds="+mMediaPlayer.getDataSource()+", class="+mMediaPlayer);
+		vLog("VanillaMusic", "P>>  hasNext="+mPreparedMediaPlayer.hasNextMediaPlayer()+", ds="+mPreparedMediaPlayer.getDataSource()+", class="+mPreparedMediaPlayer);
+
+		if(doGapless == true) {
+			try {
+				if(nextSong.path.equals(mPreparedMediaPlayer.getDataSource()) == false) {
+					// Prepared MP has a different data source: We need to re-initalize
+					// it and set it as the next MP for the active media player
+					vLog("VanillaMusic", "GAPLESS: SETTING "+nextSong.path);
+					mPreparedMediaPlayer.reset();
+					prepareMediaPlayer(mPreparedMediaPlayer, nextSong.path);
+					mMediaPlayer.setNextMediaPlayer(mPreparedMediaPlayer);
+				}
+				if(mMediaPlayer.hasNextMediaPlayer() == false) {
+					// We can reuse the prepared MediaPlayer but the current instance lacks
+					// a link to it
+					vLog("VanillaMusic", "SETTING NEXT MP as in "+mPreparedMediaPlayer.getDataSource());
+					mMediaPlayer.setNextMediaPlayer(mPreparedMediaPlayer);
+				}
+			} catch (IOException e) {
+				vLog("VanillaMusic", "triggerGaplessUpdate() failed with exception "+e);
+				mMediaPlayer.setNextMediaPlayer(null);
+				mPreparedMediaPlayer.reset();
+			}
+		} else {
+			if(mMediaPlayer.hasNextMediaPlayer()) {
+				Log.v("VanillaMusic", "UNCONFIGURING NEW MEDIA PLAYER");
+				mMediaPlayer.setNextMediaPlayer(null);
+				// There is no need to cleanup mPreparedMediaPlayer
+			}
+		}
+
+		vLog("VanillaMusic", "A<<  hasNext="+mMediaPlayer.hasNextMediaPlayer()+", ds="+mMediaPlayer.getDataSource()+", class="+mMediaPlayer);
+		vLog("VanillaMusic", "P<<  hasNext="+mPreparedMediaPlayer.hasNextMediaPlayer()+", ds="+mPreparedMediaPlayer.getDataSource()+", class="+mPreparedMediaPlayer);
+	}
+
+	// Helper to quickly enable and disable logging of triggerGaplessUpdate
+	// FIXME: REMOVE ME
+	private static void vLog(String name, String text) {
+		Log.v(name, text);
 	}
 
 	/**
@@ -733,7 +779,7 @@ public final class PlaybackService extends Service
 	 */
 	private void setupSensor()
 	{
-		if (mShakeAction == Action.Nothing || (mState & FLAG_PLAYING) == 0) {
+		if (mShakeAction == Action.Nothing) {
 			if (mSensorManager != null)
 				mSensorManager.unregisterListener(this);
 		} else {
@@ -779,6 +825,9 @@ public final class PlaybackService extends Service
 			mHeadsetOnly = settings.getBoolean(key, false);
 			if (mHeadsetOnly && isSpeakerOn())
 				unsetFlag(FLAG_PLAYING);
+		} else if (PrefKeys.CYCLE_CONTINUOUS_SHUFFLING.equals(key)) {
+			mCycleContinuousShuffling = settings.getBoolean(key, false);
+			setShuffleMode(SongTimeline.SHUFFLE_NONE);
 		} else if (PrefKeys.STOCK_BROADCAST.equals(key)) {
 			mStockBroadcast = settings.getBoolean(key, false);
 		} else if (PrefKeys.ENABLE_SHAKE.equals(key) || PrefKeys.SHAKE_ACTION.equals(key)) {
@@ -876,6 +925,13 @@ public final class PlaybackService extends Service
 
 		if ( ((toggled & FLAG_PLAYING) != 0) && mCurrentSong != null) { // user requested to start playback AND we have a song selected
 			if ((state & FLAG_PLAYING) != 0) {
+
+				// We get noisy: Acquire a new AudioFX session if required
+				if (mMediaPlayerAudioFxActive == false) {
+					mMediaPlayer.openAudioFx();
+					mMediaPlayerAudioFxActive = true;
+				}
+
 				if (mMediaPlayerInitialized)
 					mMediaPlayer.start();
 
@@ -884,7 +940,7 @@ public final class PlaybackService extends Service
 
 				mAudioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
 
-				mHandler.removeMessages(RELEASE_WAKE_LOCK);
+				mHandler.removeMessages(ENTER_SLEEP_STATE);
 				try {
 					if (mWakeLock != null && mWakeLock.isHeld() == false)
 						mWakeLock.acquire();
@@ -902,10 +958,10 @@ public final class PlaybackService extends Service
 					stopForeground(true);
 				}
 
-				// Delay release of the wake lock. This allows the headset
+				// Delay entering deep sleep. This allows the headset
 				// button to continue to function for a short period after
-				// pausing.
-				mHandler.sendEmptyMessageDelayed(RELEASE_WAKE_LOCK, WAKE_LOCK_DELAY);
+				// pausing and keeps the AudioFX session open
+				mHandler.sendEmptyMessageDelayed(ENTER_SLEEP_STATE, SLEEP_STATE_DELAY);
 			}
 
 			setupSensor();
@@ -1120,8 +1176,12 @@ public final class PlaybackService extends Service
 	{
 		synchronized (mStateLock) {
 			int mode = shuffleMode(mState) + 1;
+			if (mCycleContinuousShuffling == true && mode == SongTimeline.SHUFFLE_SONGS)
+				mode++; // skip this mode, advance to continuous
+			if (mCycleContinuousShuffling == false && mode == SongTimeline.SHUFFLE_CONTINUOUS)
+				mode++; // skip this mode, advance to albums
 			if (mode > SongTimeline.SHUFFLE_ALBUMS)
-				mode = SongTimeline.SHUFFLE_NONE;
+				mode = SongTimeline.SHUFFLE_NONE; // end reached: switch to none
 			return setShuffleMode(mode);
 		}
 	}
@@ -1184,13 +1244,15 @@ public final class PlaybackService extends Service
 		try {
 			mMediaPlayerInitialized = false;
 			mMediaPlayer.reset();
-			
-			if(mPreparedMediaPlayer != null &&
-			   mPreparedMediaPlayer.isPlaying()) {
-				
-				mMediaPlayer.release();
+
+			if(mPreparedMediaPlayer.isPlaying()) {
+				// The prepared media player is playing as the previous song
+				// reched its end 'naturally' (-> gapless)
+				// We can now swap mPreparedMediaPlayer and mMediaPlayer
+				VanillaMediaPlayer tmpPlayer = mMediaPlayer;
 				mMediaPlayer = mPreparedMediaPlayer;
-				mPreparedMediaPlayer = null;
+				mPreparedMediaPlayer = tmpPlayer; // this was mMediaPlayer and is in reset() state
+				Log.v("VanillaMusic", "Swapped media players");
 			}
 			else if(song.path != null) {
 				prepareMediaPlayer(mMediaPlayer, song.path);
@@ -1198,10 +1260,9 @@ public final class PlaybackService extends Service
 			
 
 			mMediaPlayerInitialized = true;
-
-			// Cancel any queued gapless triggers: we are updating it right now
+			// Cancel any pending gapless updates and re-send them
 			mHandler.removeMessages(GAPLESS_UPDATE);
-			triggerGaplessUpdate();
+			mHandler.sendEmptyMessage(GAPLESS_UPDATE);
 
 			if (mPendingSeek != 0 && mPendingSeekSong == song.id) {
 				mMediaPlayer.seekTo(mPendingSeek);
@@ -1315,9 +1376,9 @@ public final class PlaybackService extends Service
 	}
 
 	/**
-	 * Calls {@link PowerManager.WakeLock#release()} on mWakeLock.
+	 * Releases mWakeLock and closes any open AudioFx sessions
 	 */
-	private static final int RELEASE_WAKE_LOCK = 1;
+	private static final int ENTER_SLEEP_STATE = 1;
 	/**
 	 * Run the given query and add the results to the timeline.
 	 *
@@ -1391,9 +1452,8 @@ public final class PlaybackService extends Service
 		case BROADCAST_CHANGE:
 			broadcastChange(message.arg1, (Song)message.obj, message.getWhen());
 			break;
-		case RELEASE_WAKE_LOCK:
-			if (mWakeLock != null && mWakeLock.isHeld())
-				mWakeLock.release();
+		case ENTER_SLEEP_STATE:
+			enterSleepState();
 			break;
 		case SKIP_BROKEN_SONG:
 			/* Advance to next song if the user didn't already change.
@@ -1404,6 +1464,9 @@ public final class PlaybackService extends Service
 			if(getTimelinePosition() == message.arg1) {
 				setCurrentSong(1);
 			}
+			// Optimistically claim to have recovered from this error
+			mErrorMessage = null;
+			unsetFlag(FLAG_ERROR);
 			mHandler.sendMessage(mHandler.obtainMessage(CALL_GO, 0, 0));
 			break;
 		case GAPLESS_UPDATE:
@@ -1446,6 +1509,16 @@ public final class PlaybackService extends Service
 			return 0;
 		return mMediaPlayer.getDuration();
 	}
+
+	/**
+	 * Returns the global audio session
+	 */
+	public int getAudioSession() {
+		// Must not be 'ready' or initialized: the audio session
+		// is set on object creation
+		return mMediaPlayer.getAudioSessionId();
+	}
+
 	/**
 	 * Seek to a position in the current song.
 	 *
@@ -1638,6 +1711,16 @@ public final class PlaybackService extends Service
 	}
 
 	/**
+	 * Empty the song queue.
+	 */
+	public void emptyQueue()
+	{
+		pause();
+		setFlag(FLAG_EMPTY_QUEUE);
+		mTimeline.emptyQueue();
+	}
+
+	/**
 	 * Return the error message set when FLAG_ERROR is set.
 	 */
 	public String getErrorMessage()
@@ -1649,13 +1732,13 @@ public final class PlaybackService extends Service
 	public void timelineChanged()
 	{
 		mHandler.removeMessages(SAVE_STATE);
-		mHandler.sendEmptyMessageDelayed(SAVE_STATE, 5000);
+		mHandler.sendEmptyMessageDelayed(SAVE_STATE, SAVE_STATE_DELAY);
 
 		// Trigger a gappless update for the new timeline
 		// This might get canceled if setCurrentSong() also fired a call
 		// to processSong();
 		mHandler.removeMessages(GAPLESS_UPDATE);
-		mHandler.sendEmptyMessageDelayed(GAPLESS_UPDATE, 350);
+		mHandler.sendEmptyMessageDelayed(GAPLESS_UPDATE, 100);
 
 		ArrayList<PlaybackActivity> list = sActivities;
 		for (int i = list.size(); --i != -1; )
