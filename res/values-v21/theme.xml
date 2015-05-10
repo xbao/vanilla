@@ -96,10 +96,17 @@ Copyright (C) 2015 Adrian Ulrich <adrian@blinkenlights.ch>
 
 	<style name="Dark.Library" parent="Dark.VanillaBase">
 		<item name="android:actionBarStyle">@style/LibraryActionBar</item>
-		<item name="android:actionBarTabTextStyle">@style/LibraryActionBarTabText</item>
+		<item name="android:actionBarTabTextStyle">@style/Dark.LibraryActionBarTabText</item>
 	</style>
 
 	<style name="Dark.BackActionBar" parent="Dark.VanillaBase">
 		<item name="android:actionBarStyle">@style/PlaybackActionBar</item>
 	</style>
+
+	<style name="Dark.LibraryActionBarTabText" parent="android:Widget.Material.ActionBar.TabText">
+		<item name="android:singleLine">true</item>
+		<item name="android:textSize">11.5sp</item>
+		<item name="android:textColor">@color/material_grey_300</item>
+	</style>
+
 </resources>
