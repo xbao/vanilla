@@ -42,6 +42,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.audiofx.AudioEffect;
 import android.net.Uri;
+import android.util.TypedValue;
 import java.util.List;
 
 /**
@@ -206,7 +207,10 @@ public class PreferencesActivity extends PreferenceActivity {
 		{
 			WebView view = (WebView)super.onCreateView(inflater, container, savedInstanceState);
 			view.getSettings().setJavaScriptEnabled(true);
-			String fontColor = getResources().getString(R.color.overlay_foreground_color);
+
+			TypedValue value = new TypedValue();
+			getActivity().getTheme().resolveAttribute(R.attr.overlay_foreground_color, value, true);
+			String fontColor = TypedValue.coerceToString(value.type, value.data);
 			view.loadUrl("file:///android_asset/about.html?"+Uri.encode(fontColor));
 			view.setBackgroundColor(Color.TRANSPARENT);
 			return view;

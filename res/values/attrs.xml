@@ -1,0 +1,4 @@
+<resources>
+	<attr name="overlay_background_color" format="color" />
+	<attr name="overlay_foreground_color" format="color" />
+</resources>
