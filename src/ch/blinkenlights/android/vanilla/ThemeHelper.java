@@ -95,4 +95,21 @@ public class ThemeHelper {
 		return (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP);
 	}
 
+	/**
+	 * Hacky function to get the colors needed to draw the default cover
+	 * These colors should actually be attributes, but getting them programatically
+	 * is a big mess
+	 */
+	final public static int[] getDefaultCoverColors(Context context) {
+		int[] colors_holo_yolo      = { 0xff000000, 0xff606060, 0xff404040, 0x88000000 };
+		int[] colors_material_light = { 0xffeeeeee, 0xffd6d7d7, 0xffd6d7d7, 0x55ffffff };
+		int[] colors_material_dark  = { 0xff303030, 0xff606060, 0xff404040, 0x33ffffff };
+		if (couldUseDarkTheme() == false)
+			return colors_holo_yolo;
+		if (usesDarkTheme(context))
+			return colors_material_dark;
+		// else
+		return colors_material_light;
+	}
+
 }

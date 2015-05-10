@@ -38,12 +38,6 @@ Copyright (C) 2015 Adrian Ulrich <adrian@blinkenlights.ch>
 	<color name="controls_active">@color/vanillaAccent</color>
 	<color name="controls_normal">@color/material_grey_600</color>
 
-	<!-- styling of the default cover bitmap -->
-	<color name="defaultcover_background">#ffeeeeee</color>
-	<color name="defaultcover_gradient_begin">@color/divider_color</color>
-	<color name="defaultcover_gradient_end">@color/divider_color</color>
-	<color name="defaultcover_center">#55ffffff</color>
-
 	<!-- styles -->
 	<style name="Dialog" parent="android:Theme.Material.Light.Dialog" />
 	<style name="DialogMinWidth" parent="android:Theme.Material.Light.Dialog.MinWidth" />
