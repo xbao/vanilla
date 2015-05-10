@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Adrian Ulrich <adrian@blinkenlights.ch>
+ * Copyright (C) 2012-2015 Adrian Ulrich <adrian@blinkenlights.ch>
  * Copyright (C) 2012 Christopher Eby <kreed@kreed.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -31,6 +31,7 @@ import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceGroup;
+import android.preference.PreferenceScreen;
 import android.preference.CheckBoxPreference;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
@@ -56,8 +57,8 @@ public class PreferencesActivity extends PreferenceActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
-		super.onCreate(savedInstanceState);
 		ThemeHelper.setTheme(this, R.style.BackActionBar);
+		super.onCreate(savedInstanceState);
 	}
 
 	@Override
@@ -199,6 +200,13 @@ public class PreferencesActivity extends PreferenceActivity {
 		{
 			super.onCreate(savedInstanceState);
 			addPreferencesFromResource(R.xml.preference_misc);
+
+			// Hide the dark theme preference if this device
+			// does not support multiple themes
+			PreferenceScreen screen = getPreferenceScreen();
+			CheckBoxPreference dark_theme_pref = (CheckBoxPreference)findPreference("use_dark_theme");
+			if (ThemeHelper.couldUseDarkTheme() == false)
+				screen.removePreference(dark_theme_pref);
 		}
 	}
 

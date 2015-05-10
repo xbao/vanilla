@@ -123,9 +123,9 @@ public class FullPlaybackActivity extends PlaybackActivity
 	@Override
 	public void onCreate(Bundle icicle)
 	{
+		ThemeHelper.setTheme(this, R.style.Playback);
 		super.onCreate(icicle);
 
-		ThemeHelper.setTheme(this, R.style.Playback);
 		setTitle(R.string.playback_view);
 
 		SharedPreferences settings = PlaybackService.getSettings(this);

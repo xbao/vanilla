@@ -91,9 +91,8 @@ public class PlaylistActivity extends Activity
 	@Override
 	public void onCreate(Bundle state)
 	{
-		super.onCreate(state);
-
 		ThemeHelper.setTheme(this, R.style.BackActionBar);
+		super.onCreate(state);
 
 		HandlerThread thread = new HandlerThread(getClass().getName());
 		thread.start();

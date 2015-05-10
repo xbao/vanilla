@@ -24,6 +24,11 @@ THE SOFTWARE.
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	android:persistent="true">
 	<CheckBoxPreference
+		android:key="use_dark_theme"
+		android:title="@string/use_dark_theme_title"
+		android:summary="@string/use_dark_theme_summary"
+		android:defaultValue="false" />
+	<CheckBoxPreference
 		android:key="disable_lockscreen"
 		android:title="@string/disable_lockscreen_title"
 		android:summary="@string/disable_lockscreen_summary"

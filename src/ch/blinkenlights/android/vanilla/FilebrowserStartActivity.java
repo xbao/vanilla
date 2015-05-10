@@ -45,9 +45,9 @@ public class FilebrowserStartActivity extends PlaybackActivity {
 	
 	@Override  
 	public void onCreate(Bundle savedInstanceState) {
+		ThemeHelper.setTheme(this, R.style.BackActionBar);
 		super.onCreate(savedInstanceState);
 
-		ThemeHelper.setTheme(this, R.style.BackActionBar);
 		setTitle(R.string.filebrowser_start);
 		setContentView(R.layout.filebrowser_content);
 		mCurrentPath = (String)getFilesystemBrowseStart().getAbsolutePath();

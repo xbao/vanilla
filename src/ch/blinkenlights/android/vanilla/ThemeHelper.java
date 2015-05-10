@@ -18,13 +18,19 @@
 package ch.blinkenlights.android.vanilla;
 
 import android.content.Context;
-import android.util.Log;
+import android.content.SharedPreferences;
+import android.os.Build;
 
 public class ThemeHelper {
 
-	final static int setTheme(Context context, int theme) {
-
-		if (useDarkTheme()) {
+	/**
+	 * Calls context.setTheme() with given theme.
+	 * Will automatically swap the theme with an alternative
+	 * version if the user requested us to use it
+	 */
+	final public static int setTheme(Context context, int theme)
+	{
+		if (usesDarkTheme(context)) {
 			switch (theme) {
 				case R.style.Playback:
 					theme = R.style.Dark_Playback;
@@ -38,14 +44,55 @@ public class ThemeHelper {
 				default:
 					break;
 			}
-			Log.v("VanillaMusic", "Returning "+theme+", but dark would be "+R.style.Library);
 		}
 		context.setTheme(theme);
 		return theme;
 	}
 
-	final static boolean useDarkTheme() {
-		return true;
+	/**
+	 * Helper function to get the correct play button drawable for our
+	 * notification: The notification does not depend on the theme but
+	 * depends on the API level
+	 */
+	final public static int getPlayButtonResource(boolean playing)
+	{
+		int playButton = 0;
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+			// Android >= 5.0 uses the dark version of this drawable
+			playButton = playing ? R.drawable.widget_pause : R.drawable.widget_play;
+		} else {
+			playButton = playing ? R.drawable.pause : R.drawable.play;
+		}
+		return playButton;
+	}
+
+	/**
+	 * Configures (or unconfigures) the use of the black theme
+	 */
+	final public static void setDarkTheme(boolean enable)
+	{
+	}
+
+	/**
+	 * Returns TRUE if we should use the dark material theme,
+	 * Returns FALSE otherwise - always returns FALSE on pre-5.x devices
+	 */
+	final private static boolean usesDarkTheme(Context context)
+	{
+		boolean useDark = false;
+		if(couldUseDarkTheme()) {
+			SharedPreferences settings = PlaybackService.getSettings(context);
+			useDark = settings.getBoolean(PrefKeys.USE_DARK_THEME, false);
+		}
+		return useDark;
+	}
+
+	/**
+	 * Returns TRUE if this device may use the dark theme
+	 * (eg: running api v21 or later)
+	 */
+	final public static boolean couldUseDarkTheme() {
+		return (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP);
 	}
 
 }
