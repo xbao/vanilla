@@ -155,6 +155,14 @@ public class PreferencesActivity extends PreferenceActivity {
 		{
 			super.onCreate(savedInstanceState);
 			addPreferencesFromResource(R.xml.preference_playback);
+
+			// Hide the dark theme preference if this device
+			// does not support multiple themes
+			PreferenceScreen screen = getPreferenceScreen();
+			CheckBoxPreference dark_theme_pref = (CheckBoxPreference)findPreference("use_dark_theme");
+			if (ThemeHelper.couldUseDarkTheme() == false)
+				screen.removePreference(dark_theme_pref);
+
 		}
 	}
 
@@ -200,13 +208,6 @@ public class PreferencesActivity extends PreferenceActivity {
 		{
 			super.onCreate(savedInstanceState);
 			addPreferencesFromResource(R.xml.preference_misc);
-
-			// Hide the dark theme preference if this device
-			// does not support multiple themes
-			PreferenceScreen screen = getPreferenceScreen();
-			CheckBoxPreference dark_theme_pref = (CheckBoxPreference)findPreference("use_dark_theme");
-			if (ThemeHelper.couldUseDarkTheme() == false)
-				screen.removePreference(dark_theme_pref);
 		}
 	}
 
