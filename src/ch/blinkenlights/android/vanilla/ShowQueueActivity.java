@@ -41,7 +41,8 @@ public class ShowQueueActivity extends PlaybackActivity
 	@Override  
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		
+
+		ThemeHelper.setTheme(this, R.style.BackActionBar);
 		setTitle(R.string.queue);
 		setContentView(R.layout.showqueue_listview);
 		

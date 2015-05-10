@@ -93,6 +93,8 @@ public class PlaylistActivity extends Activity
 	{
 		super.onCreate(state);
 
+		ThemeHelper.setTheme(this, R.style.BackActionBar);
+
 		HandlerThread thread = new HandlerThread(getClass().getName());
 		thread.start();
 

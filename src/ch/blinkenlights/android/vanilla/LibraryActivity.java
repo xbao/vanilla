@@ -167,6 +167,8 @@ public class LibraryActivity
 	{
 		super.onCreate(state);
 
+		ThemeHelper.setTheme(this, R.style.Library);
+
 		if (state == null) {
 			checkForLaunch(getIntent());
 		}

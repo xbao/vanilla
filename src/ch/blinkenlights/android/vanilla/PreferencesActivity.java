@@ -57,6 +57,7 @@ public class PreferencesActivity extends PreferenceActivity {
 	protected void onCreate(Bundle savedInstanceState)
 	{
 		super.onCreate(savedInstanceState);
+		ThemeHelper.setTheme(this, R.style.BackActionBar);
 	}
 
 	@Override
