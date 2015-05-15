@@ -202,6 +202,7 @@ public class LibraryActivity
 	@Override
 	public void onCreate(Bundle state)
 	{
+		ThemeHelper.setTheme(this, R.style.Library);
 		super.onCreate(state);
 
 		if (state == null) {

@@ -45,8 +45,9 @@ public class FilebrowserStartActivity extends PlaybackActivity {
 	
 	@Override  
 	public void onCreate(Bundle savedInstanceState) {
+		ThemeHelper.setTheme(this, R.style.BackActionBar);
 		super.onCreate(savedInstanceState);
-		
+
 		setTitle(R.string.filebrowser_start);
 		setContentView(R.layout.filebrowser_content);
 		mCurrentPath = (String)getFilesystemBrowseStart().getAbsolutePath();
@@ -60,7 +61,7 @@ public class FilebrowserStartActivity extends PlaybackActivity {
 
 		mSaveButton.setOnClickListener(new View.OnClickListener() {
 			public void onClick(View v) {
-				mPrefEditor.putString("filesystem_browse_start", mCurrentPath);
+				mPrefEditor.putString(PrefKeys.FILESYSTEM_BROWSE_START, mCurrentPath);
 				mPrefEditor.commit();
 				finish();
 			}});

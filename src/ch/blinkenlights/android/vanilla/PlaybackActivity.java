@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2010, 2011 Christopher Eby <kreed@kreed.org>
- * Copyright (C) 2014 Adrian Ulrich <adrian@blinkenlights.ch>
+ * Copyright (C) 2014-2015 Adrian Ulrich <adrian@blinkenlights.ch>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -122,6 +122,7 @@ public abstract class PlaybackActivity extends Activity
 		mDownAction = Action.getAction(prefs, PrefKeys.SWIPE_DOWN_ACTION, Action.Nothing);
 
 		Window window = getWindow();
+
 		if (prefs.getBoolean(PrefKeys.DISABLE_LOCKSCREEN, false))
 			window.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
 					| WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
@@ -139,7 +140,9 @@ public abstract class PlaybackActivity extends Activity
 			PlaybackService service = PlaybackService.get(this);
 			service.userActionTriggered();
 		}
+
 	}
+
 
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent event)
@@ -291,7 +294,7 @@ public abstract class PlaybackActivity extends Activity
 	 */
 	protected File getFilesystemBrowseStart() {
 		SharedPreferences prefs = PlaybackService.getSettings(this);
-		String folder = prefs.getString("filesystem_browse_start", "");
+		String folder = prefs.getString(PrefKeys.FILESYSTEM_BROWSE_START, "");
 		File fs_start = new File( folder.equals("") ? Environment.getExternalStorageDirectory().getAbsolutePath() : folder );
 		return fs_start;
 	}
