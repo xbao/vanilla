@@ -30,6 +30,7 @@ THE SOFTWARE.
 	<string name="library">Library</string>
 	<string name="no_shuffle">No shuffle</string>
 	<string name="shuffle_songs">Shuffle songs</string>
+	<string name="shuffle_songs_continuously">Shuffle songs continuously</string>
 	<string name="shuffle_albums">Shuffle albums</string>
 	<string name="no_repeat">No repeat</string>
 	<string name="repeat">Repeat</string>
@@ -185,6 +186,9 @@ THE SOFTWARE.
 	<string name="notification_invert_color_title">Invert Notification Color</string>
 	<string name="notification_invert_color_summary">Use white text instead of black text</string>
 
+	<string name="notification_nag">Very verbose notification</string>
+	<string name="notification_nag_summary">Announce song changes using a \'Heads-Up-Notification\'</string>
+
 	<string name="playback_screen">Playback Screen</string>
 	<string name="playback_on_startup_title">Open on Startup</string>
 	<string name="playback_on_startup_summary">Open playback view on startup</string>
@@ -278,6 +282,8 @@ THE SOFTWARE.
 	<string name="dequeue_rest">Dequeue rest</string>
 	<string name="queue">Queue</string>
 	<string name="toggle_controls">Toggle controls</string>
+	<string name="seek_10s_backward">Seek 10 seconds backward</string>
+	<string name="seek_10s_forward">Seek 10 seconds forward</string>
 
 	<string name="filebrowser_start">Filebrowser home</string>
 	<string name="customize_filebrowser_start">Filebrowser starts at this directory</string>
