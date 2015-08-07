@@ -915,7 +915,11 @@ public class LibraryActivity
 				if (song != null) {
 					cover = song.getCover(this);
 					if (cover != null) {
-						cover = Bitmap.createScaledBitmap(cover, holder.cover.getWidth(), holder.cover.getHeight(), true);
+						// the bitmap scaler uses a poor scaling algorithm
+						// we are therefore passing a double-sized image to the view
+						// as it uses a much nicer scaling algorithm
+						int bmPx = holder.cover.getWidth()*2;
+						cover = Bitmap.createScaledBitmap(cover, bmPx, bmPx, true);
 					}
 				}
 				// Run this in UI Thread
