@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 Christopher Eby <kreed@kreed.org>
+ * Copyright (C) 2015 Adrian Ulrich <adrian@blinkenlights.ch>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -73,6 +74,7 @@ public class LibraryActivity
 	implements DialogInterface.OnClickListener
 	         , DialogInterface.OnDismissListener
 	         , SearchView.OnQueryTextListener
+	         , MediaAdapter.Callback
 {
 
 
@@ -864,7 +866,30 @@ public class LibraryActivity
 	/**
 	 * Save the current page, passed in arg1, to SharedPreferences.
 	 */
-	private static final int MSG_SAVE_PAGE = 12;
+	private static final int MSG_SAVE_PAGE = 50;
+	/**
+	 * Trigger an artwork update
+	 */
+	private static final int MSG_REFRESH_ARTWORK = 51;
+	/**
+	 * Instruct UI Thread to draw the sent bitmap
+	 */
+	private static final int MSG_DRAW_ARTWORK = 52;
+
+	private static class CoverPayload {
+		public String cacheKey;
+		public int type;
+		public long id;
+		public ViewHolder holder;
+		public Bitmap cover;
+		CoverPayload(String cacheKey, int type, long id, ViewHolder holder, Bitmap cover) {
+			this.cacheKey = cacheKey;
+			this.type = type;
+			this.id = id;
+			this.holder = holder;
+			this.cover = cover;
+		}
+	}
 
 	@Override
 	public boolean handleMessage(Message message)
@@ -874,6 +899,44 @@ public class LibraryActivity
 			SharedPreferences.Editor editor = PlaybackService.getSettings(this).edit();
 			editor.putInt("library_page", message.arg1);
 			editor.commit();
+			break;
+		}
+		case MSG_REFRESH_ARTWORK: {
+			CoverPayload payload = (CoverPayload)message.obj;
+			ViewHolder holder = payload.holder;
+			int type = payload.type;
+			long id = payload.id;
+
+			// The view might already have been re-used: check if the cache key still
+			// matches to avoid creating obsoleted bitmaps
+			if(payload.cacheKey.equals(holder.cacheKey) && holder.coverCacheable == false) {
+				Bitmap cover = null;
+				Song song = MediaUtils.getSongByTypeId(getContentResolver(), type, id);
+				if (song != null) {
+					cover = song.getCover(this);
+					if (cover != null) {
+						cover = Bitmap.createScaledBitmap(cover, 128, 128, true);
+					}
+				}
+				// Run this in UI Thread
+				mUiHandler.sendMessage(mUiHandler.obtainMessage(MSG_DRAW_ARTWORK, new CoverPayload(payload.cacheKey, type, id, holder, cover)));
+			}
+			break;
+		}
+		case MSG_DRAW_ARTWORK: {
+			CoverPayload payload = (CoverPayload)message.obj;
+			synchronized(payload.holder) {
+				if (payload.cacheKey.equals(payload.holder.cacheKey)) {
+					if (payload.cover != null)
+						payload.holder.cover.setImageBitmap(payload.cover);
+					payload.holder.coverCacheable = true;
+				} else {
+					// The ViewHolder was already used for an other cover
+					// Drop this RPC and trigger a new one to update this View anyway
+					// (as it is still visible)
+					onNeedArtworkUpdate(payload.type, payload.holder);
+				}
+			}
 			break;
 		}
 		default:
@@ -974,6 +1037,17 @@ public class LibraryActivity
 			Handler handler = mHandler;
 			handler.sendMessage(mHandler.obtainMessage(MSG_SAVE_PAGE, position, 0));
 		}
+	}
+
+	/**
+	 * Called by the MediaAdapter if a view needs an updated cover
+	 * @param type The media type of the caller
+	 * @param view The ViewHolder object of the inflated view to update
+	 */
+	public void onNeedArtworkUpdate(int type, ViewHolder holder) {
+		// We store a copy of the cacheKey + id to detect updates on the holder object
+		CoverPayload payload = new CoverPayload(holder.cacheKey, type, holder.id, holder, null);
+		mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_REFRESH_ARTWORK, payload), 25);
 	}
 
 }

@@ -20,10 +20,12 @@ package ch.blinkenlights.android.vanilla;
 import android.widget.TextView;
 import android.widget.ImageView;
 
-
 public class ViewHolder {
 	public long id;
+	public String cacheKey;
 	public String title;
 	public TextView text;
 	public ImageView arrow;
+	public ImageView cover;
+	public boolean coverCacheable;
 }

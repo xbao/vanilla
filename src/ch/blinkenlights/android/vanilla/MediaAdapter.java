@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010, 2011 Christopher Eby <kreed@kreed.org>
+ * Copyright (C) 2015 Adrian Ulrich <adrian@blinkenlights.ch>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +28,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.provider.BaseColumns;
 import android.provider.MediaStore;
@@ -40,6 +42,7 @@ import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.util.LruCache;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.lang.StringBuilder;
@@ -134,6 +137,24 @@ public class MediaAdapter
 	 * If true, show the expander button on each row.
 	 */
 	private boolean mExpandable;
+	/**
+	 * If true, return views with covers and fire callbacks
+	 */
+	private boolean mHasCoverArt;
+	/**
+	 * The drawable cache instance.
+	 */
+	private static DrawableCache sDrawableCache = null;
+
+	/**
+	 * Callback Interface to notify about missing cover elements
+	 */
+	public interface Callback {
+		/**
+		 * Called when a view is missing its cover
+		 */
+		public void onNeedArtworkUpdate(int type, ViewHolder holder);
+	}
 
 	/**
 	 * Construct a MediaAdapter representing the given <code>type</code> of
@@ -151,6 +172,9 @@ public class MediaAdapter
 		mType = type;
 		mLimiter = limiter;
 		mInflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		if (sDrawableCache == null) {
+			sDrawableCache = new DrawableCache(6 * 1024 * 1024);
+		}
 
 		switch (type) {
 		case MediaUtils.TYPE_ARTIST:
@@ -169,6 +193,7 @@ public class MediaAdapter
 			mSongSort = MediaUtils.ALBUM_SORT;
 			mSortEntries = new int[] { R.string.name, R.string.artist_album, R.string.year, R.string.number_of_tracks, R.string.date_added };
 			mSortValues = new String[] { "album_key %1$s", "artist_key %1$s,album_key %1$s", "minyear %1$s,album_key %1$s", "numsongs %1$s,album_key %1$s", "_id %1$s" };
+			mHasCoverArt = true;
 			break;
 		case MediaUtils.TYPE_SONG:
 			mStore = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
@@ -178,6 +203,7 @@ public class MediaAdapter
 			                           R.string.artist_year, R.string.album_track, R.string.year, R.string.date_added, R.string.song_playcount };
 			mSortValues = new String[] { "title_key %1$s", "artist_key %1$s,album_key %1$s,track %1$s", "artist_key %1$s,album_key %1$s,title_key %1$s",
 			                             "artist_key %1$s,year %1$s,track %1$s", "album_key %1$s,track %1s", "year %1$s,title_key %1$s", "_id %1$s", SORT_MAGIC_PLAYCOUNT };
+			mHasCoverArt = true;
 			break;
 		case MediaUtils.TYPE_PLAYLIST:
 			mStore = MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI;
@@ -448,17 +474,29 @@ public class MediaAdapter
 
 			holder.text = (TextView)view.findViewById(R.id.text);
 			holder.arrow = (ImageView)view.findViewById(R.id.arrow);
-			holder.arrow.setOnClickListener(this);
+			holder.cover = (ImageView)view.findViewById(R.id.cover);
 			holder.text.setOnClickListener(this);
+			holder.arrow.setOnClickListener(this);
+			holder.cover.setOnClickListener(this);
 
 			holder.arrow.setVisibility(mExpandable ? View.VISIBLE : View.GONE);
+			holder.cover.setVisibility(mHasCoverArt ? View.VISIBLE : View.GONE);
+
 		} else {
 			holder = (ViewHolder)view.getTag();
+
+			synchronized(holder) {
+				if (holder.coverCacheable) {
+					// This cover has been 'created': save it into the cache
+					sDrawableCache.put(holder.cacheKey, holder.cover.getDrawable());
+				}
+			}
 		}
 
 		Cursor cursor = mCursor;
 		cursor.moveToPosition(position);
 		holder.id = cursor.getLong(0);
+		holder.cacheKey = mType+"//"+holder.id;
 		if (mFields.length > 1) {
 			String line1 = cursor.getString(1);
 			String line2 = cursor.getString(2);
@@ -475,6 +513,18 @@ public class MediaAdapter
 			if(title == null) { title = "???"; }
 			holder.text.setText(title);
 			holder.title = title;
+		}
+
+		if (mHasCoverArt) {
+			Drawable cachedCover = sDrawableCache.get(holder.cacheKey);
+			if (cachedCover == null) {
+				holder.coverCacheable = false;
+				holder.cover.setImageResource(R.drawable.fallback_cover);
+				mActivity.onNeedArtworkUpdate(mType, holder);
+			} else {
+				holder.coverCacheable = true; // read from cache-> we can re-cache it
+				holder.cover.setImageDrawable(cachedCover);
+			}
 		}
 
 		return view;
@@ -592,4 +642,11 @@ public class MediaAdapter
 	{
 		return true;
 	}
+
+	private class DrawableCache extends LruCache<String, Drawable> {
+		public DrawableCache(int size) {
+			super(size);
+		}
+	}
+
 }
