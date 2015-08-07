@@ -915,7 +915,7 @@ public class LibraryActivity
 				if (song != null) {
 					cover = song.getCover(this);
 					if (cover != null) {
-						cover = Bitmap.createScaledBitmap(cover, 128, 128, true);
+						cover = Bitmap.createScaledBitmap(cover, holder.cover.getWidth(), holder.cover.getHeight(), true);
 					}
 				}
 				// Run this in UI Thread
