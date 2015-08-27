@@ -428,9 +428,6 @@ public class FullPlaybackActivity extends PlaybackActivity
 				dialog.create().show();
 			}
 			break;
-		case MENU_SHOW_QUEUE:
-			startActivity(new Intent(this, ShowQueueActivity.class));
-			break;
 		default:
 			return super.onOptionsItemSelected(item);
 		}
@@ -647,7 +644,7 @@ public class FullPlaybackActivity extends PlaybackActivity
 	 */
 	private static final int MSG_UPDATE_POSITION = 17;
 	/**
-	 * Calls {@link #seekToProgress()}.
+	 * Calls {@link PlaybackService#seekToProgress(int)}.
 	 */
 	private static final int MSG_SEEK_TO_PROGRESS = 18;
 
@@ -713,13 +710,14 @@ public class FullPlaybackActivity extends PlaybackActivity
 		mSeekBarTracking = false;
 	}
 
-	public void performAction(Action action)
+	@Override
+	protected void performAction(Action action)
 	{
 		if (action == Action.ToggleControls) {
 			setControlsVisible(!mControlsVisible);
 			mHandler.sendEmptyMessage(MSG_SAVE_CONTROLS);
 		} else {
-			PlaybackService.get(this).performAction(action, this);
+			super.performAction(action);
 		}
 	}
 
