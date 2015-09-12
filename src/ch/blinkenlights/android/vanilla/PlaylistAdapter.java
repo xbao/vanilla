@@ -34,17 +34,18 @@ import android.os.Looper;
 import android.os.Message;
 import android.provider.MediaStore;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CursorAdapter;
 import android.widget.TextView;
-import android.provider.MediaStore.Audio.Playlists.Members;
+
+import com.h6ah4i.android.widget.advrecyclerview.utils.AbstractSwipeableItemViewHolder;
 
 /**
  * CursorAdapter backed by MediaStore playlists.
  */
-public class PlaylistAdapter extends CursorRecyclerViewAdapter<RecyclerView.ViewHolder>
+public class PlaylistAdapter extends CursorRecyclerViewDragAdapter<DragViewHolder>
         implements Handler.Callback {
 	private static final String[] PROJECTION = new String[] {
 		MediaStore.Audio.Playlists.Members._ID,
@@ -60,7 +61,7 @@ public class PlaylistAdapter extends CursorRecyclerViewAdapter<RecyclerView.View
 	private final Handler mUiHandler;
 	private final LayoutInflater mInflater;
 
-	private long mPlaylistId;
+    private long mPlaylistId;
 
 	private boolean mEditable;
 
@@ -78,6 +79,15 @@ public class PlaylistAdapter extends CursorRecyclerViewAdapter<RecyclerView.View
 		mUiHandler = new Handler(this);
 		mWorkerHandler = new Handler(worker, this);
 		mInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        setHasStableIds(true);
+        getRemoveSwipeAdapter().setRemoveItemListener(new RemoveSwipeAdapter.RemoveItemListener() {
+            @Override
+            public void onRemoveItem(final int position) {
+                removeItem(position);
+            }
+        });
+
+
 	}
 
 	/**
@@ -103,13 +113,23 @@ public class PlaylistAdapter extends CursorRecyclerViewAdapter<RecyclerView.View
         notifyDataSetChanged();
 	}
 
+
+    /**
+     * Generate a new view.
+     */
+    @Override
+    public DragViewHolder onCreateViewHolder(final ViewGroup parent, final int viewType) {
+        return new SongViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.draggable_row, parent, false));
+    }
 	/**
 	 * Update the values in the given view.
 	 */
 	@Override
-	public void onBindViewHolder(final RecyclerView.ViewHolder viewHolder, final Cursor cursor)
+	public void onBindViewHolder(final DragViewHolder viewHolderUncasted, final Cursor cursor)
 	{
-		DraggableRow dview = (DraggableRow)viewHolder.itemView;
+
+        SongViewHolder viewHolder = (SongViewHolder) viewHolderUncasted;
+		DraggableRow dview = viewHolder.draggableRow;
 		dview.setupLayout(DraggableRow.LAYOUT_COVERVIEW);
 		dview.showDragger(mEditable);
 
@@ -120,14 +140,6 @@ public class PlaylistAdapter extends CursorRecyclerViewAdapter<RecyclerView.View
 		LazyCoverView cover = dview.getCoverView();
 		cover.setup(mWorkerHandler.getLooper());
 		cover.setCover(MediaUtils.TYPE_ALBUM, cursor.getLong(4));
-	}
-
-	/**
-	 * Generate a new view.
-	 */
-    @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(final ViewGroup parent, final int viewType) {
-		return new SongViewHolder(mInflater.inflate(R.layout.draggable_row, null));
 	}
 
 	/**
@@ -235,12 +247,23 @@ public class PlaylistAdapter extends CursorRecyclerViewAdapter<RecyclerView.View
 		mUiHandler.sendEmptyMessage(MSG_RUN_QUERY);
 	}
 
+    private static void log(String message) {
+        Log.d(PlaylistAdapter.class.getSimpleName(), message);
+    }
 
-    private static class SongViewHolder extends RecyclerView.ViewHolder {
+    private static void logv(String message) {
+        Log.v(PlaylistAdapter.class.getSimpleName(), message);
+    }
+
+    private static class SongViewHolder extends DragViewHolder {
+
+        public final DraggableRow draggableRow;
 
         public SongViewHolder(final View itemView) {
             super(itemView);
+            draggableRow = (DraggableRow) itemView.findViewById(R.id.draggable_row);
         }
+
     }
 
 }

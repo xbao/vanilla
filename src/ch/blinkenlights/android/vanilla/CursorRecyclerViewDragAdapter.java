@@ -25,7 +25,7 @@ import android.support.v7.widget.RecyclerView;
 /**
  * Created by skyfishjy on 10/31/14.
  */
-public abstract class CursorRecyclerViewAdapter<VH extends RecyclerView.ViewHolder> extends RecyclerView.Adapter<VH> {
+public abstract class CursorRecyclerViewDragAdapter<VH extends DragViewHolder> extends AbstractDragAdapter<VH> {
 
     private Context mContext;
 
@@ -37,7 +37,7 @@ public abstract class CursorRecyclerViewAdapter<VH extends RecyclerView.ViewHold
 
     private DataSetObserver mDataSetObserver;
 
-    public CursorRecyclerViewAdapter(Context context, Cursor cursor) {
+    public CursorRecyclerViewDragAdapter(Context context, Cursor cursor) {
         mContext = context;
         mCursor = cursor;
         mDataValid = cursor != null;
@@ -84,6 +84,7 @@ public abstract class CursorRecyclerViewAdapter<VH extends RecyclerView.ViewHold
             throw new IllegalStateException("couldn't move cursor to position " + position);
         }
         onBindViewHolder(viewHolder, mCursor);
+        super.onBindViewHolder(viewHolder, position);
     }
 
     /**

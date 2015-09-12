@@ -39,6 +39,10 @@ import android.view.View;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
 import android.widget.Button;
+
+import com.h6ah4i.android.widget.advrecyclerview.animator.GeneralItemAnimator;
+import com.h6ah4i.android.widget.advrecyclerview.animator.SwipeDismissItemAnimator;
+import com.h6ah4i.android.widget.advrecyclerview.swipeable.RecyclerViewSwipeManager;
 import com.mobeta.android.dslv.DragSortListView;
 
 /**
@@ -46,7 +50,6 @@ import com.mobeta.android.dslv.DragSortListView;
  */
 public class PlaylistActivity extends Activity
 	implements View.OnClickListener
-	         , AbsListView.OnItemClickListener
 	         , DialogInterface.OnClickListener
 	         , DragSortListView.DropListener
 	         , DragSortListView.RemoveListener
@@ -115,8 +118,29 @@ public class PlaylistActivity extends Activity
     private void initialiseListView() {
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         mListView.setLayoutManager(layoutManager);
+
+        //Swipe
+        RecyclerViewSwipeManager swipeManager = new RecyclerViewSwipeManager();
+
+
         mAdapter = new PlaylistAdapter(this, mLooper);
-        mListView.setAdapter(mAdapter);
+        mAdapter.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(final View v) {
+                onItemClick(v);
+            }
+        });
+        RecyclerView.Adapter wrappedAdapter = swipeManager.createWrappedAdapter(mAdapter);
+        mListView.setAdapter(wrappedAdapter);
+        mListView.setItemAnimator(createAnimator());
+
+        swipeManager.attachRecyclerView(mListView);
+    }
+
+    private RecyclerView.ItemAnimator createAnimator() {
+        final GeneralItemAnimator animator = new SwipeDismissItemAnimator();
+        animator.setSupportsChangeAnimations(false);
+        return animator;
     }
 
     private View createHeader() {
@@ -269,13 +293,13 @@ public class PlaylistActivity extends Activity
         return 0;
     }
 
-    @Override
-	public void onItemClick(AdapterView<?> adapterView, View view, int position, long id)
+	public void onItemClick(View item)
 	{
 		if (!mEditing && mDefaultAction != LibraryActivity.ACTION_DO_NOTHING) {
+            int position = mListView.getChildAdapterPosition(item);
 			// fixme: this is butt ugly: the adapter should probably already set this on view (its parent)
 			// setting this on the textarea is hacky
-			performAction(mDefaultAction, position, (Long)view.findViewById(R.id.text).getTag());
+			performAction(mDefaultAction, position, (Long)item.findViewById(R.id.text).getTag());
 		}
 	}
 
