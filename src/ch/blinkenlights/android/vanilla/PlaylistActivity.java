@@ -30,6 +30,8 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.Looper;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
@@ -61,7 +63,7 @@ public class PlaylistActivity extends Activity
 	 * An event loop running on a worker thread.
 	 */
 	private Looper mLooper;
-	private DragSortListView mListView;
+	private RecyclerView mListView;
 	private PlaylistAdapter mAdapter;
 
 	/**
@@ -101,25 +103,30 @@ public class PlaylistActivity extends Activity
 
 		setContentView(R.layout.playlist_activity);
 
-		DragSortListView view = (DragSortListView)findViewById(R.id.list);
-		view.setOnItemClickListener(this);
-		view.setOnCreateContextMenuListener(this);
-		view.setDropListener(this);
-		view.setRemoveListener(this);
-		mListView = view;
 
-		View header = LayoutInflater.from(this).inflate(R.layout.playlist_buttons, null);
-		mEditButton = (Button)header.findViewById(R.id.edit);
-		mEditButton.setOnClickListener(this);
-		mDeleteButton = (Button)header.findViewById(R.id.delete);
-		mDeleteButton.setOnClickListener(this);
-		view.addHeaderView(header, null, false);
 		mLooper = thread.getLooper();
-		mAdapter = new PlaylistAdapter(this, mLooper);
-		view.setAdapter(mAdapter);
+        mListView = (RecyclerView)findViewById(R.id.list);
+
+        initialiseListView();
 
 		onNewIntent(getIntent());
 	}
+
+    private void initialiseListView() {
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        mListView.setLayoutManager(layoutManager);
+        mAdapter = new PlaylistAdapter(this, mLooper);
+        mListView.setAdapter(mAdapter);
+    }
+
+    private View createHeader() {
+        View header = LayoutInflater.from(this).inflate(R.layout.playlist_buttons, null);
+        mEditButton = (Button)header.findViewById(R.id.edit);
+        mEditButton.setOnClickListener(this);
+        mDeleteButton = (Button)header.findViewById(R.id.delete);
+        mDeleteButton.setOnClickListener(this);
+        return header;
+    }
 
 	@Override
 	public void onStart()
@@ -155,13 +162,17 @@ public class PlaylistActivity extends Activity
 	 */
 	public void setEditing(boolean editing)
 	{
-		mListView.setDragEnabled(editing);
+        setDragEnabled(editing);
 		mAdapter.setEditable(editing);
 		int visible = editing ? View.GONE : View.VISIBLE;
 		mDeleteButton.setVisibility(visible);
 		mEditButton.setText(editing ? R.string.done : R.string.edit);
 		mEditing = editing;
 	}
+
+    private void setDragEnabled(boolean dragEnabled) {
+        //mListView.setDragEnabled(editing);
+    }
 
 	@Override
 	public void onClick(View view)
@@ -212,7 +223,7 @@ public class PlaylistActivity extends Activity
 		int pos = intent.getIntExtra("position", -1);
 
 		if (itemId == MENU_REMOVE) {
-			mAdapter.removeItem(pos - mListView.getHeaderViewsCount());
+			mAdapter.removeItem(pos - getHeaderViewsCount());
 		} else {
 			performAction(itemId, pos, intent.getLongExtra("audioId", -1));
 		}
@@ -245,7 +256,7 @@ public class PlaylistActivity extends Activity
 		case LibraryActivity.ACTION_ENQUEUE_ALL: {
 			QueryTask query = MediaUtils.buildPlaylistQuery(mPlaylistId, Song.FILLED_PLAYLIST_PROJECTION, null);
 			query.mode = MODE_FOR_ACTION[action];
-			query.data = position - mListView.getHeaderViewsCount();
+			query.data = position - getHeaderViewsCount();
 			PlaybackService.get(this).addSongs(query);
 			break;
 		}
@@ -254,7 +265,11 @@ public class PlaylistActivity extends Activity
 		mLastAction = action;
 	}
 
-	@Override
+    private int getHeaderViewsCount() {
+        return 0;
+    }
+
+    @Override
 	public void onItemClick(AdapterView<?> adapterView, View view, int position, long id)
 	{
 		if (!mEditing && mDefaultAction != LibraryActivity.ACTION_DO_NOTHING) {

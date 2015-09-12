@@ -33,6 +33,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.provider.MediaStore;
+import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -43,7 +44,8 @@ import android.provider.MediaStore.Audio.Playlists.Members;
 /**
  * CursorAdapter backed by MediaStore playlists.
  */
-public class PlaylistAdapter extends CursorAdapter implements Handler.Callback {
+public class PlaylistAdapter extends CursorRecyclerViewAdapter<RecyclerView.ViewHolder>
+        implements Handler.Callback {
 	private static final String[] PROJECTION = new String[] {
 		MediaStore.Audio.Playlists.Members._ID,
 		MediaStore.Audio.Playlists.Members.TITLE,
@@ -70,7 +72,7 @@ public class PlaylistAdapter extends CursorAdapter implements Handler.Callback {
 	 */
 	public PlaylistAdapter(Context context, Looper worker)
 	{
-		super(context, null, false);
+		super(context, null);
 
 		mContext = context;
 		mUiHandler = new Handler(this);
@@ -98,16 +100,16 @@ public class PlaylistAdapter extends CursorAdapter implements Handler.Callback {
 	public void setEditable(boolean editable)
 	{
 		mEditable = editable;
-		notifyDataSetInvalidated();
+        notifyDataSetChanged();
 	}
 
 	/**
 	 * Update the values in the given view.
 	 */
 	@Override
-	public void bindView(View view, Context context, Cursor cursor)
+	public void onBindViewHolder(final RecyclerView.ViewHolder viewHolder, final Cursor cursor)
 	{
-		DraggableRow dview = (DraggableRow)view;
+		DraggableRow dview = (DraggableRow)viewHolder.itemView;
 		dview.setupLayout(DraggableRow.LAYOUT_COVERVIEW);
 		dview.showDragger(mEditable);
 
@@ -123,10 +125,9 @@ public class PlaylistAdapter extends CursorAdapter implements Handler.Callback {
 	/**
 	 * Generate a new view.
 	 */
-	@Override
-	public View newView(Context context, Cursor cursor, ViewGroup parent)
-	{
-		return mInflater.inflate(R.layout.draggable_row, null);
+    @Override
+    public RecyclerView.ViewHolder onCreateViewHolder(final ViewGroup parent, final int viewType) {
+		return new SongViewHolder(mInflater.inflate(R.layout.draggable_row, null));
 	}
 
 	/**
@@ -138,9 +139,8 @@ public class PlaylistAdapter extends CursorAdapter implements Handler.Callback {
 	 */
 	public static final int MSG_UPDATE_CURSOR = 2;
 
-	@Override
-	public boolean handleMessage(Message message)
-	{
+    @Override
+    public boolean handleMessage(final Message message) {
 		switch (message.what) {
 		case MSG_RUN_QUERY: {
 			Cursor cursor = runQuery(mContext.getContentResolver());
@@ -180,7 +180,7 @@ public class PlaylistAdapter extends CursorAdapter implements Handler.Callback {
 			// easy mode
 			return;
 
-		int count = getCount();
+		int count = getItemCount();
 		if (to >= count || from >= count)
 			// this can happen when the adapter changes during the drag
 			return;
@@ -235,5 +235,12 @@ public class PlaylistAdapter extends CursorAdapter implements Handler.Callback {
 		mUiHandler.sendEmptyMessage(MSG_RUN_QUERY);
 	}
 
+
+    private static class SongViewHolder extends RecyclerView.ViewHolder {
+
+        public SongViewHolder(final View itemView) {
+            super(itemView);
+        }
+    }
 
 }
