@@ -150,6 +150,8 @@ THE SOFTWARE.
 
 	<string name="audio">Audio</string>
 	<string name="volume_title">Volume</string>
+	<string name="volume_during_ducking_title">Volume During Notification</string>
+	<string name="volume_during_ducking_summary">Playback volume: </string>
 	<string name="media_button_title">Headset/Bluetooth Controls</string>
 	<string name="media_button_summary">This is also required for ICS lockscreen controls.</string>
 	<string name="media_button_beep_title">Headset Control Beep</string>
@@ -171,6 +173,8 @@ THE SOFTWARE.
 	<string name="replaygain_bump_title">Replay Gain Pre-amp</string>
 	<string name="replaygain_untagged_debump_title">Songs without Replay Gain tag</string>
 	<string name="replaygain_untagged_debump_summary">Decrease volume by</string>
+	<string name="replaygain_preamp_note_title">Note</string>
+	<string name="replaygain_preamp_note_content">Android does not allow Vanilla Music to raise the volume to >100%. Setting the Pre-amp to a high value may cause issues if you are listening to \'quiet\' music. \n\nRecommended values are:\n-> -3dB for silent/classical music\n-> +3dB for post-2000 recordings</string> 
 
 	<string name="readahead">Enable readahead</string>
 	<string name="readahead_summary">Readahead the currently playing song. This option may solve \'audio dropout\' issues. (caused by a slow SD card)</string>
@@ -284,6 +288,11 @@ THE SOFTWARE.
 	<string name="toggle_controls">Toggle controls</string>
 	<string name="seek_10s_backward">Seek 10 seconds backward</string>
 	<string name="seek_10s_forward">Seek 10 seconds forward</string>
+	<string name="preferences_action_show_queue">Show queue</string>
+	<string name="preferences_action_clear_queue">Clear queue</string>
+	<string name="preferences_action_enqueue_current_album">Enqueue album</string>
+	<string name="preferences_action_enqueue_current_artist">Enqueue artist</string>
+	<string name="preferences_action_enqueue_current_genre">Enqueue genre</string>
 
 	<string name="filebrowser_start">Filebrowser home</string>
 	<string name="customize_filebrowser_start">Filebrowser starts at this directory</string>

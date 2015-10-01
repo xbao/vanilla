@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 Christopher Eby <kreed@kreed.org>
+ * Copyright (C) 2015 Adrian Ulrich <adrian@blinkenlights.ch>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -770,7 +771,7 @@ public class LibraryActivity
 				.setMessage(delete_message)
 				.setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
 					public void onClick(DialogInterface dialog, int id) {
-						mPagerAdapter.maintainState(); // remember current scrolling position
+						mPagerAdapter.maintainPosition(); // remember current scrolling position
 						mHandler.sendMessage(mHandler.obtainMessage(MSG_DELETE, intent));
 					}
 				})
@@ -980,26 +981,20 @@ public class LibraryActivity
 
 		if (mTitle != null) {
 			if (song == null) {
-				if (mActionControls == null) {
-					mTitle.setText(R.string.none);
-					mArtist.setText(null);
-				} else {
-					mTitle.setText(null);
-					mArtist.setText(null);
-					return;
-				}
+				mTitle.setText(null);
+				mArtist.setText(null);
+				mCover.setImageBitmap(null);
 			} else {
 				Resources res = getResources();
 				String title = song.title == null ? res.getString(R.string.unknown) : song.title;
 				String artist = song.artist == null ? res.getString(R.string.unknown) : song.artist;
 				mTitle.setText(title);
 				mArtist.setText(artist);
+				// Update and generate the cover in a background thread
+				mHandler.sendMessage(mHandler.obtainMessage(MSG_UPDATE_COVER, song));
 			}
-
 			mCover.setVisibility(CoverCache.mCoverLoadMode == 0 ? View.GONE : View.VISIBLE);
-			mHandler.sendMessage(mHandler.obtainMessage(MSG_UPDATE_COVER, song));
 		}
-
 	}
 
 	@Override
