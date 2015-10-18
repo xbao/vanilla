@@ -24,7 +24,7 @@
 package ch.blinkenlights.android.vanilla;
 
 /**
- * SharedPreference keys. Must be kept in sync with keys in res/xml/prefs_*.xml.
+ * SharedPreference keys. Must be kept in sync with PrefDefaults.java.
  */
 public class PrefKeys {
 	public static final String COVER_LONGPRESS_ACTION = "cover_longpress_action";
@@ -34,6 +34,7 @@ public class PrefKeys {
 	public static final String COVERLOADER_ANDROID = "coverloader_android";
 	public static final String COVERLOADER_VANILLA = "coverloader_vanilla";
 	public static final String COVERLOADER_SHADOW = "coverloader_shadow";
+	public static final String COVER_ON_LOCKSCREEN = "cover_on_lockscreen";
 	public static final String DISABLE_LOCKSCREEN = "disable_lockscreen";
 	public static final String DISPLAY_MODE = "display_mode";
 	public static final String DOUBLE_TAP = "double_tap";
@@ -67,4 +68,5 @@ public class PrefKeys {
 	public static final String USE_DARK_THEME = "use_dark_theme";
 	public static final String FILESYSTEM_BROWSE_START = "filesystem_browse_start";
 	public static final String VOLUME_DURING_DUCKING = "volume_during_ducking";
+	public static final String AUTOPLAYLIST_PLAYCOUNTS = "playcounts_autoplaylist";
 }

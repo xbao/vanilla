@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2015 Adrian Ulrich <adrian@blinkenlights.ch>
  * Copyright (C) 2010, 2011 Christopher Eby <kreed@kreed.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,7 +29,6 @@ import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.graphics.Color;
 import android.net.Uri;
-import android.os.Looper;
 import android.provider.BaseColumns;
 import android.provider.MediaStore;
 import android.text.Spannable;
@@ -81,7 +81,6 @@ public class MediaAdapter
 	 * The current data.
 	 */
 	private Cursor mCursor;
-	private Looper mLooper;
 	/**
 	 * The type of media represented by this adapter. Must be one of the
 	 * MediaUtils.FIELD_* constants. Determines which content provider to query for
@@ -156,16 +155,14 @@ public class MediaAdapter
 	 * and what fields to display in the views.
 	 * @param limiter An initial limiter to use
 	 * @param activity The LibraryActivity that will contain this adapter - may be null
-	 * @param looper The looper to use for image processing - may be null
 	 *
 	 */
-	public MediaAdapter(Context context, int type, Limiter limiter, LibraryActivity activity, Looper looper)
+	public MediaAdapter(Context context, int type, Limiter limiter, LibraryActivity activity)
 	{
 		mContext = context;
 		mActivity = activity;
 		mType = type;
 		mLimiter = limiter;
-		mLooper = looper;
 
 		if (mActivity != null) {
 			mInflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
@@ -202,9 +199,11 @@ public class MediaAdapter
 			mFields = new String[] { MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.ALBUM, MediaStore.Audio.Media.TITLE };
 			mFieldKeys = new String[] { MediaStore.Audio.Media.ARTIST_KEY, MediaStore.Audio.Media.ALBUM_KEY, MediaStore.Audio.Media.TITLE_KEY };
 			mSortEntries = new int[] { R.string.name, R.string.artist_album_track, R.string.artist_album_title,
-			                           R.string.artist_year, R.string.album_track, R.string.year, R.string.date_added, R.string.song_playcount };
-			mSortValues = new String[] { "title_key %1$s", "artist_key %1$s,album_key %1$s,track %1$s", "artist_key %1$s,album_key %1$s,title_key %1$s",
-			                             "artist_key %1$s,year %1$s,track %1$s", "album_key %1$s,track %1s", "year %1$s,title_key %1$s", "_id %1$s", SORT_MAGIC_PLAYCOUNT };
+			                           R.string.artist_year, R.string.album_track,
+			                           R.string.year, R.string.date_added, R.string.song_playcount };
+			mSortValues = new String[] { "title_key %1$s", "artist_key %1$s,album_key %1$s,track", "artist_key %1$s,album_key %1$s,title_key %1$s",
+			                             "artist_key %1$s,year %1$s,album_key %1$s, track", "album_key %1$s,track",
+			                             "year %1$s,title_key %1$s","_id %1$s", SORT_MAGIC_PLAYCOUNT };
 			mCoverCacheType = MediaUtils.TYPE_ALBUM;
 			coverCacheKey = MediaStore.Audio.Albums.ALBUM_ID;
 			break;
@@ -296,7 +295,8 @@ public class MediaAdapter
 		String sort = String.format(sortStringRaw, sortDir);
 
 		if (mType == MediaUtils.TYPE_SONG || forceMusicCheck)
-			selection.append("is_music AND length(_data)");
+			selection.append(MediaStore.Audio.Media.IS_MUSIC+" AND length(_data)");
+
 
 		if (constraint != null && constraint.length() != 0) {
 			String[] needles;
@@ -341,7 +341,7 @@ public class MediaAdapter
 		if (limiter != null && limiter.type == MediaUtils.TYPE_GENRE) {
 			// Genre is not standard metadata for MediaStore.Audio.Media.
 			// We have to query it through a separate provider. : /
-			return MediaUtils.buildGenreQuery((Long)limiter.data, projection,  selection.toString(), selectionArgs, sort);
+			return MediaUtils.buildGenreQuery((Long)limiter.data, projection,  selection.toString(), selectionArgs, sort, mType == MediaUtils.TYPE_ALBUM);
 		} else {
 			if (limiter != null) {
 				if (selection.length() != 0)
@@ -486,7 +486,6 @@ public class MediaAdapter
 			holder.divider.setVisibility(mExpandable ? View.VISIBLE : View.GONE);
 			holder.arrow.setVisibility(mExpandable ? View.VISIBLE : View.GONE);
 			holder.cover.setVisibility(mCoverCacheType != MediaUtils.TYPE_INVALID ? View.VISIBLE : View.GONE);
-			holder.cover.setup(mLooper);
 		} else {
 			holder = (ViewHolder)view.getTag();
 		}

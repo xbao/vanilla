@@ -234,7 +234,7 @@ public class LibraryActivity
 		mActionControls = controls;
 
 		loadTabOrder();
-		int page = settings.getInt(PrefKeys.LIBRARY_PAGE, 0);
+		int page = settings.getInt(PrefKeys.LIBRARY_PAGE, PrefDefaults.LIBRARY_PAGE);
 		if (page != 0) {
 			pager.setCurrentItem(page);
 		}
@@ -255,7 +255,7 @@ public class LibraryActivity
 		super.onStart();
 
 		SharedPreferences settings = PlaybackService.getSettings(this);
-		mDefaultAction = Integer.parseInt(settings.getString(PrefKeys.DEFAULT_ACTION_INT, "7"));
+		mDefaultAction = Integer.parseInt(settings.getString(PrefKeys.DEFAULT_ACTION_INT, PrefDefaults.DEFAULT_ACTION_INT));
 		mLastActedId = LibraryAdapter.INVALID_ID;
 		updateHeaders();
 	}
@@ -277,7 +277,7 @@ public class LibraryActivity
 	private void checkForLaunch(Intent intent)
 	{
 		SharedPreferences settings = PlaybackService.getSettings(this);
-		if (settings.getBoolean(PrefKeys.PLAYBACK_ON_STARTUP, false) && Intent.ACTION_MAIN.equals(intent.getAction())) {
+		if (settings.getBoolean(PrefKeys.PLAYBACK_ON_STARTUP, PrefDefaults.PLAYBACK_ON_STARTUP) && Intent.ACTION_MAIN.equals(intent.getAction())) {
 			startActivity(new Intent(this, FullPlaybackActivity.class));
 		}
 	}

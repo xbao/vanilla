@@ -157,6 +157,14 @@ public class Song implements Comparable<Song> {
 	}
 
 	/**
+	 * Returns true if the song is filled
+	 */
+	public boolean isFilled()
+	{
+		return (id != -1 && path != null);
+	}
+
+	/**
 	 * Populate fields with data from the supplied cursor.
 	 *
 	 * @param cursor Cursor queried with FILLED_PROJECTION projection

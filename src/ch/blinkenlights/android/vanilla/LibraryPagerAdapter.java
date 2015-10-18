@@ -219,7 +219,7 @@ public class LibraryPagerAdapter
 	 */
 	public boolean loadTabOrder()
 	{
-		String in = PlaybackService.getSettings(mActivity).getString(PrefKeys.TAB_ORDER, null);
+		String in = PlaybackService.getSettings(mActivity).getString(PrefKeys.TAB_ORDER, PrefDefaults.TAB_ORDER);
 		int[] order;
 		int count;
 		if (in == null || in.length() != MAX_ADAPTER_COUNT) {
@@ -307,30 +307,29 @@ public class LibraryPagerAdapter
 			LayoutInflater inflater = activity.getLayoutInflater();
 			LibraryAdapter adapter;
 			LinearLayout header = null;
-			Looper looper = mWorkerHandler.getLooper();
 
 			switch (type) {
 			case MediaUtils.TYPE_ARTIST:
-				adapter = mArtistAdapter = new MediaAdapter(activity, MediaUtils.TYPE_ARTIST, null, activity, looper);
+				adapter = mArtistAdapter = new MediaAdapter(activity, MediaUtils.TYPE_ARTIST, null, activity);
 				mArtistAdapter.setExpandable(mSongsPosition != -1 || mAlbumsPosition != -1);
 				mArtistHeader = header = (LinearLayout)inflater.inflate(R.layout.library_row_expandable, null);
 				break;
 			case MediaUtils.TYPE_ALBUM:
-				adapter = mAlbumAdapter = new MediaAdapter(activity, MediaUtils.TYPE_ALBUM, mPendingAlbumLimiter, activity, looper);
+				adapter = mAlbumAdapter = new MediaAdapter(activity, MediaUtils.TYPE_ALBUM, mPendingAlbumLimiter, activity);
 				mAlbumAdapter.setExpandable(mSongsPosition != -1);
 				mPendingAlbumLimiter = null;
 				mAlbumHeader = header = (LinearLayout)inflater.inflate(R.layout.library_row_expandable, null);
 				break;
 			case MediaUtils.TYPE_SONG:
-				adapter = mSongAdapter = new MediaAdapter(activity, MediaUtils.TYPE_SONG, mPendingSongLimiter, activity, looper);
+				adapter = mSongAdapter = new MediaAdapter(activity, MediaUtils.TYPE_SONG, mPendingSongLimiter, activity);
 				mPendingSongLimiter = null;
 				mSongHeader = header = (LinearLayout)inflater.inflate(R.layout.library_row_expandable, null);
 				break;
 			case MediaUtils.TYPE_PLAYLIST:
-				adapter = mPlaylistAdapter = new MediaAdapter(activity, MediaUtils.TYPE_PLAYLIST, null, activity, looper);
+				adapter = mPlaylistAdapter = new MediaAdapter(activity, MediaUtils.TYPE_PLAYLIST, null, activity);
 				break;
 			case MediaUtils.TYPE_GENRE:
-				adapter = mGenreAdapter = new MediaAdapter(activity, MediaUtils.TYPE_GENRE, null, activity, looper);
+				adapter = mGenreAdapter = new MediaAdapter(activity, MediaUtils.TYPE_GENRE, null, activity);
 				mGenreAdapter.setExpandable(mSongsPosition != -1);
 				break;
 			case MediaUtils.TYPE_FILE:
@@ -540,7 +539,7 @@ public class LibraryPagerAdapter
 				requestRequery(mAlbumAdapter);
 			}
 			if (mSongAdapter == null) {
-				mPendingSongLimiter = null;
+				mPendingSongLimiter = limiter;
 			} else {
 				mSongAdapter.setLimiter(limiter);
 				loadSortOrder(mSongAdapter);

@@ -129,7 +129,7 @@ public class FullPlaybackActivity extends PlaybackActivity
 		setTitle(R.string.playback_view);
 
 		SharedPreferences settings = PlaybackService.getSettings(this);
-		int displayMode = Integer.parseInt(settings.getString(PrefKeys.DISPLAY_MODE, "2"));
+		int displayMode = Integer.parseInt(settings.getString(PrefKeys.DISPLAY_MODE, PrefDefaults.DISPLAY_MODE));
 		mDisplayMode = displayMode;
 
 		int layout = R.layout.full_playback;
@@ -200,8 +200,8 @@ public class FullPlaybackActivity extends PlaybackActivity
 		mEndButton.setOnClickListener(this);
 		registerForContextMenu(mEndButton);
 
-		setControlsVisible(settings.getBoolean(PrefKeys.VISIBLE_CONTROLS, true));
-		setExtraInfoVisible(settings.getBoolean(PrefKeys.VISIBLE_EXTRA_INFO, false));
+		setControlsVisible(settings.getBoolean(PrefKeys.VISIBLE_CONTROLS, PrefDefaults.VISIBLE_CONTROLS));
+		setExtraInfoVisible(settings.getBoolean(PrefKeys.VISIBLE_EXTRA_INFO, PrefDefaults.VISIBLE_EXTRA_INFO));
 		setDuration(0);
 	}
 
@@ -211,13 +211,13 @@ public class FullPlaybackActivity extends PlaybackActivity
 		super.onStart();
 
 		SharedPreferences settings = PlaybackService.getSettings(this);
-		if (mDisplayMode != Integer.parseInt(settings.getString(PrefKeys.DISPLAY_MODE, "2"))) {
+		if (mDisplayMode != Integer.parseInt(settings.getString(PrefKeys.DISPLAY_MODE, PrefDefaults.DISPLAY_MODE))) {
 			finish();
 			startActivity(new Intent(this, FullPlaybackActivity.class));
 		}
 
-		mCoverPressAction = Action.getAction(settings, PrefKeys.COVER_PRESS_ACTION, Action.ToggleControls);
-		mCoverLongPressAction = Action.getAction(settings, PrefKeys.COVER_LONGPRESS_ACTION, Action.PlayPause);
+		mCoverPressAction = Action.getAction(settings, PrefKeys.COVER_PRESS_ACTION, PrefDefaults.COVER_PRESS_ACTION);
+		mCoverLongPressAction = Action.getAction(settings, PrefKeys.COVER_LONGPRESS_ACTION, PrefDefaults.COVER_LONGPRESS_ACTION);
 	}
 
 	@Override
@@ -337,7 +337,7 @@ public class FullPlaybackActivity extends PlaybackActivity
 			PlaybackService service = PlaybackService.get(this);
 			mQueuePosView.setText((service.getTimelinePosition() + 1) + "/" + service.getTimelineLength());
 		}
-		mInfoTable.requestLayout(); // ensure queue pos column has enough room
+		mQueuePosView.requestLayout(); // ensure queue pos column has enough room
 	}
 
 	@Override
@@ -594,10 +594,8 @@ public class FullPlaybackActivity extends PlaybackActivity
 			}
 			mFormat = sb.toString();
 
-			if(song.path != null) { /* ICS bug? */
-				float[] rg = PlaybackService.get(this).getReplayGainValues(song.path);
-				mReplayGain = "track="+rg[0]+"dB, album="+rg[1]+"dB";
-			}
+			float[] rg = PlaybackService.get(this).getReplayGainValues(song.path);
+			mReplayGain = "track="+rg[0]+"dB, album="+rg[1]+"dB";
 
 			data.release();
 		}
@@ -654,8 +652,8 @@ public class FullPlaybackActivity extends PlaybackActivity
 		switch (message.what) {
 		case MSG_SAVE_CONTROLS: {
 			SharedPreferences.Editor editor = PlaybackService.getSettings(this).edit();
-			editor.putBoolean("visible_controls", mControlsVisible);
-			editor.putBoolean("visible_extra_info", mExtraInfoVisible);
+			editor.putBoolean(PrefKeys.VISIBLE_CONTROLS, mControlsVisible);
+			editor.putBoolean(PrefKeys.VISIBLE_EXTRA_INFO, mExtraInfoVisible);
 			editor.commit();
 			break;
 		}

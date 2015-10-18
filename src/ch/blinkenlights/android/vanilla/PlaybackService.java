@@ -59,6 +59,7 @@ import android.provider.MediaStore;
 import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.Toast;
+import java.lang.Math;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -389,6 +390,10 @@ public final class PlaybackService extends Service
 	 */
 	private boolean mForceNotificationVisible;
 	/**
+	 * Amount of songs included in our auto playlist
+	 */
+	private int mAutoPlPlaycounts;
+	/**
 	 * Enables or disables Replay Gain
 	 */
 	private boolean mReplayGainTrackEnabled;
@@ -435,39 +440,40 @@ public final class PlaybackService extends Service
 
 		mBastpUtil = new BastpUtil();
 		mReadahead = new ReadaheadThread();
-		mReadahead.start();
 
 		mNotificationManager = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 		mAudioManager = (AudioManager)getSystemService(AUDIO_SERVICE);
 
 		SharedPreferences settings = getSettings(this);
 		settings.registerOnSharedPreferenceChangeListener(this);
-		mNotificationMode = Integer.parseInt(settings.getString(PrefKeys.NOTIFICATION_MODE, "1"));
-		mNotificationNag = settings.getBoolean(PrefKeys.NOTIFICATION_NAG, false);
-		mScrobble = settings.getBoolean(PrefKeys.SCROBBLE, false);
-		mIdleTimeout = settings.getBoolean(PrefKeys.USE_IDLE_TIMEOUT, false) ? settings.getInt(PrefKeys.IDLE_TIMEOUT, 3600) : 0;
+		mNotificationMode = Integer.parseInt(settings.getString(PrefKeys.NOTIFICATION_MODE, PrefDefaults.NOTIFICATION_MODE));
+		mNotificationNag = settings.getBoolean(PrefKeys.NOTIFICATION_NAG, PrefDefaults.NOTIFICATION_NAG);
+		mScrobble = settings.getBoolean(PrefKeys.SCROBBLE, PrefDefaults.SCROBBLE);
+		mIdleTimeout = settings.getBoolean(PrefKeys.USE_IDLE_TIMEOUT, PrefDefaults.USE_IDLE_TIMEOUT) ? settings.getInt(PrefKeys.IDLE_TIMEOUT, PrefDefaults.IDLE_TIMEOUT) : 0;
 
-		CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_ANDROID, true) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_ANDROID : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_ANDROID);
-		CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_VANILLA, true) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_VANILLA : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_VANILLA);
-		CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_SHADOW , true) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_SHADOW  : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_SHADOW);
+		CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_ANDROID, PrefDefaults.COVERLOADER_ANDROID) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_ANDROID : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_ANDROID);
+		CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_VANILLA, PrefDefaults.COVERLOADER_VANILLA) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_VANILLA : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_VANILLA);
+		CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_SHADOW , PrefDefaults.COVERLOADER_SHADOW)  ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_SHADOW  : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_SHADOW);
 
-		mHeadsetOnly = settings.getBoolean(PrefKeys.HEADSET_ONLY, false);
-		mCycleContinuousShuffling = settings.getBoolean(PrefKeys.CYCLE_CONTINUOUS_SHUFFLING, false);
-		mStockBroadcast = settings.getBoolean(PrefKeys.STOCK_BROADCAST, false);
+		mHeadsetOnly = settings.getBoolean(PrefKeys.HEADSET_ONLY, PrefDefaults.HEADSET_ONLY);
+		mCycleContinuousShuffling = settings.getBoolean(PrefKeys.CYCLE_CONTINUOUS_SHUFFLING, PrefDefaults.CYCLE_CONTINUOUS_SHUFFLING);
+		mStockBroadcast = settings.getBoolean(PrefKeys.STOCK_BROADCAST, PrefDefaults.STOCK_BROADCAST);
 		mNotificationAction = createNotificationAction(settings);
-		mHeadsetPause = getSettings(this).getBoolean(PrefKeys.HEADSET_PAUSE, true);
-		mShakeAction = settings.getBoolean(PrefKeys.ENABLE_SHAKE, false) ? Action.getAction(settings, PrefKeys.SHAKE_ACTION, Action.NextSong) : Action.Nothing;
-		mShakeThreshold = settings.getInt(PrefKeys.SHAKE_THRESHOLD, 80) / 10.0f;
+		mHeadsetPause = getSettings(this).getBoolean(PrefKeys.HEADSET_PAUSE, PrefDefaults.HEADSET_PAUSE);
+		mShakeAction = settings.getBoolean(PrefKeys.ENABLE_SHAKE, PrefDefaults.ENABLE_SHAKE) ? Action.getAction(settings, PrefKeys.SHAKE_ACTION, PrefDefaults.SHAKE_ACTION) : Action.Nothing;
+		mShakeThreshold = settings.getInt(PrefKeys.SHAKE_THRESHOLD, PrefDefaults.SHAKE_THRESHOLD) / 10.0f;
 
-		mReplayGainTrackEnabled = settings.getBoolean(PrefKeys.ENABLE_TRACK_REPLAYGAIN, false);
-		mReplayGainAlbumEnabled = settings.getBoolean(PrefKeys.ENABLE_ALBUM_REPLAYGAIN, false);
-		mReplayGainBump = settings.getInt(PrefKeys.REPLAYGAIN_BUMP, 75);  /* seek bar is 150 -> 75 == middle == 0 */
-		mReplayGainUntaggedDeBump = settings.getInt(PrefKeys.REPLAYGAIN_UNTAGGED_DEBUMP, 150); /* seek bar is 150 -> == 0 */
+		mReplayGainTrackEnabled = settings.getBoolean(PrefKeys.ENABLE_TRACK_REPLAYGAIN, PrefDefaults.ENABLE_TRACK_REPLAYGAIN);
+		mReplayGainAlbumEnabled = settings.getBoolean(PrefKeys.ENABLE_ALBUM_REPLAYGAIN, PrefDefaults.ENABLE_ALBUM_REPLAYGAIN);
+		mReplayGainBump = settings.getInt(PrefKeys.REPLAYGAIN_BUMP, PrefDefaults.REPLAYGAIN_BUMP);
+		mReplayGainUntaggedDeBump = settings.getInt(PrefKeys.REPLAYGAIN_UNTAGGED_DEBUMP, PrefDefaults.REPLAYGAIN_UNTAGGED_DEBUMP);
 
-		mVolumeDuringDucking = settings.getInt(PrefKeys.VOLUME_DURING_DUCKING, 50);
+		mVolumeDuringDucking = settings.getInt(PrefKeys.VOLUME_DURING_DUCKING, PrefDefaults.VOLUME_DURING_DUCKING);
 		refreshDuckingValues();
 
-		mReadaheadEnabled = settings.getBoolean(PrefKeys.ENABLE_READAHEAD, false);
+		mReadaheadEnabled = settings.getBoolean(PrefKeys.ENABLE_READAHEAD, PrefDefaults.ENABLE_READAHEAD);
+
+		mAutoPlPlaycounts = settings.getInt(PrefKeys.AUTOPLAYLIST_PLAYCOUNTS, PrefDefaults.AUTOPLAYLIST_PLAYCOUNTS);
 
 		PowerManager powerManager = (PowerManager)getSystemService(POWER_SERVICE);
 		mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VanillaMusicLock");
@@ -731,7 +737,6 @@ public final class PlaybackService extends Service
 		Song nextSong = getSong(1);
 
 		if( nextSong != null
-		 && nextSong.path != null
 		 && fa != SongTimeline.FINISH_REPEAT_CURRENT
 		 && fa != SongTimeline.FINISH_STOP_CURRENT
 		 && !mTimeline.isEndOfQueue() ) {
@@ -810,67 +815,71 @@ public final class PlaybackService extends Service
 	{
 		SharedPreferences settings = getSettings(this);
 		if (PrefKeys.HEADSET_PAUSE.equals(key)) {
-			mHeadsetPause = settings.getBoolean(PrefKeys.HEADSET_PAUSE, true);
+			mHeadsetPause = settings.getBoolean(PrefKeys.HEADSET_PAUSE, PrefDefaults.HEADSET_PAUSE);
 		} else if (PrefKeys.NOTIFICATION_ACTION.equals(key)) {
 			mNotificationAction = createNotificationAction(settings);
 			updateNotification();
 		} else if (PrefKeys.NOTIFICATION_MODE.equals(key)){
-			mNotificationMode = Integer.parseInt(settings.getString(PrefKeys.NOTIFICATION_MODE, "1"));
+			mNotificationMode = Integer.parseInt(settings.getString(PrefKeys.NOTIFICATION_MODE, PrefDefaults.NOTIFICATION_MODE));
 			// This is the only way to remove a notification created by
 			// startForeground(), even if we are not currently in foreground
 			// mode.
 			stopForeground(true);
 			updateNotification();
 		} else if (PrefKeys.NOTIFICATION_NAG.equals(key)) {
-			mNotificationNag = settings.getBoolean(PrefKeys.NOTIFICATION_NAG, false);
+			mNotificationNag = settings.getBoolean(PrefKeys.NOTIFICATION_NAG, PrefDefaults.NOTIFICATION_NAG);
 			// no need to update notification: happens on next event
 		} else if (PrefKeys.SCROBBLE.equals(key)) {
-			mScrobble = settings.getBoolean(PrefKeys.SCROBBLE, false);
+			mScrobble = settings.getBoolean(PrefKeys.SCROBBLE, PrefDefaults.SCROBBLE);
 		} else if (PrefKeys.MEDIA_BUTTON.equals(key) || PrefKeys.MEDIA_BUTTON_BEEP.equals(key)) {
 			MediaButtonReceiver.reloadPreference(this);
+		} else if (PrefKeys.COVER_ON_LOCKSCREEN.equals(key)) {
+			RemoteControl.reloadPreference();
 		} else if (PrefKeys.USE_IDLE_TIMEOUT.equals(key) || PrefKeys.IDLE_TIMEOUT.equals(key)) {
-			mIdleTimeout = settings.getBoolean(PrefKeys.USE_IDLE_TIMEOUT, false) ? settings.getInt(PrefKeys.IDLE_TIMEOUT, 3600) : 0;
+			mIdleTimeout = settings.getBoolean(PrefKeys.USE_IDLE_TIMEOUT, PrefDefaults.USE_IDLE_TIMEOUT) ? settings.getInt(PrefKeys.IDLE_TIMEOUT, PrefDefaults.IDLE_TIMEOUT) : 0;
 			userActionTriggered();
 		} else if (PrefKeys.COVERLOADER_ANDROID.equals(key)) {
-			CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_ANDROID, true) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_ANDROID : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_ANDROID);
+			CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_ANDROID, PrefDefaults.COVERLOADER_ANDROID) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_ANDROID : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_ANDROID);
 			CoverCache.evictAll();
 		} else if (PrefKeys.COVERLOADER_VANILLA.equals(key)) {
-			CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_VANILLA, true) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_VANILLA : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_VANILLA);
+			CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_VANILLA, PrefDefaults.COVERLOADER_VANILLA) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_VANILLA : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_VANILLA);
 			CoverCache.evictAll();
 		} else if (PrefKeys.COVERLOADER_SHADOW.equals(key)) {
-			CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_SHADOW, true) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_SHADOW : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_SHADOW);
+			CoverCache.mCoverLoadMode = settings.getBoolean(PrefKeys.COVERLOADER_SHADOW, PrefDefaults.COVERLOADER_SHADOW) ? CoverCache.mCoverLoadMode | CoverCache.COVER_MODE_SHADOW : CoverCache.mCoverLoadMode & ~(CoverCache.COVER_MODE_SHADOW);
 			CoverCache.evictAll();
 		} else if (PrefKeys.HEADSET_ONLY.equals(key)) {
-			mHeadsetOnly = settings.getBoolean(key, false);
+			mHeadsetOnly = settings.getBoolean(key, PrefDefaults.HEADSET_ONLY);
 			if (mHeadsetOnly && isSpeakerOn())
 				unsetFlag(FLAG_PLAYING);
 		} else if (PrefKeys.CYCLE_CONTINUOUS_SHUFFLING.equals(key)) {
-			mCycleContinuousShuffling = settings.getBoolean(key, false);
+			mCycleContinuousShuffling = settings.getBoolean(key, PrefDefaults.CYCLE_CONTINUOUS_SHUFFLING);
 			setShuffleMode(SongTimeline.SHUFFLE_NONE);
 		} else if (PrefKeys.STOCK_BROADCAST.equals(key)) {
-			mStockBroadcast = settings.getBoolean(key, false);
+			mStockBroadcast = settings.getBoolean(key, PrefDefaults.STOCK_BROADCAST);
 		} else if (PrefKeys.ENABLE_SHAKE.equals(key) || PrefKeys.SHAKE_ACTION.equals(key)) {
-			mShakeAction = settings.getBoolean(PrefKeys.ENABLE_SHAKE, false) ? Action.getAction(settings, PrefKeys.SHAKE_ACTION, Action.NextSong) : Action.Nothing;
+			mShakeAction = settings.getBoolean(PrefKeys.ENABLE_SHAKE, PrefDefaults.ENABLE_SHAKE) ? Action.getAction(settings, PrefKeys.SHAKE_ACTION, PrefDefaults.SHAKE_ACTION) : Action.Nothing;
 			setupSensor();
 		} else if (PrefKeys.SHAKE_THRESHOLD.equals(key)) {
-			mShakeThreshold = settings.getInt(PrefKeys.SHAKE_THRESHOLD, 80) / 10.0f;
+			mShakeThreshold = settings.getInt(PrefKeys.SHAKE_THRESHOLD, PrefDefaults.SHAKE_THRESHOLD) / 10.0f;
 		} else if (PrefKeys.ENABLE_TRACK_REPLAYGAIN.equals(key)) {
-			mReplayGainTrackEnabled = settings.getBoolean(PrefKeys.ENABLE_TRACK_REPLAYGAIN, false);
+			mReplayGainTrackEnabled = settings.getBoolean(PrefKeys.ENABLE_TRACK_REPLAYGAIN, PrefDefaults.ENABLE_TRACK_REPLAYGAIN);
 			refreshReplayGainValues();
 		} else if (PrefKeys.ENABLE_ALBUM_REPLAYGAIN.equals(key)) {
-			mReplayGainAlbumEnabled = settings.getBoolean(PrefKeys.ENABLE_ALBUM_REPLAYGAIN, false);
+			mReplayGainAlbumEnabled = settings.getBoolean(PrefKeys.ENABLE_ALBUM_REPLAYGAIN, PrefDefaults.ENABLE_ALBUM_REPLAYGAIN);
 			refreshReplayGainValues();
 		} else if (PrefKeys.REPLAYGAIN_BUMP.equals(key)) {
-			mReplayGainBump = settings.getInt(PrefKeys.REPLAYGAIN_BUMP, 75);
+			mReplayGainBump = settings.getInt(PrefKeys.REPLAYGAIN_BUMP, PrefDefaults.REPLAYGAIN_BUMP);
 			refreshReplayGainValues();
 		} else if (PrefKeys.REPLAYGAIN_UNTAGGED_DEBUMP.equals(key)) {
-			mReplayGainUntaggedDeBump = settings.getInt(PrefKeys.REPLAYGAIN_UNTAGGED_DEBUMP, 150);
+			mReplayGainUntaggedDeBump = settings.getInt(PrefKeys.REPLAYGAIN_UNTAGGED_DEBUMP, PrefDefaults.REPLAYGAIN_UNTAGGED_DEBUMP);
 			refreshReplayGainValues();
 		} else if (PrefKeys.VOLUME_DURING_DUCKING.equals(key)) {
-			mVolumeDuringDucking = settings.getInt(PrefKeys.VOLUME_DURING_DUCKING, 50);
+			mVolumeDuringDucking = settings.getInt(PrefKeys.VOLUME_DURING_DUCKING, PrefDefaults.VOLUME_DURING_DUCKING);
 			refreshDuckingValues();
 		} else if (PrefKeys.ENABLE_READAHEAD.equals(key)) {
-			mReadaheadEnabled = settings.getBoolean(PrefKeys.ENABLE_READAHEAD, false);
+			mReadaheadEnabled = settings.getBoolean(PrefKeys.ENABLE_READAHEAD, PrefDefaults.ENABLE_READAHEAD);
+		} else if (PrefKeys.AUTOPLAYLIST_PLAYCOUNTS.equals(key)) {
+			mAutoPlPlaycounts = settings.getInt(PrefKeys.AUTOPLAYLIST_PLAYCOUNTS, PrefDefaults.AUTOPLAYLIST_PLAYCOUNTS);
 		} else if (PrefKeys.USE_DARK_THEME.equals(key)) {
 			// Theme changed: trigger a restart of all registered activites
 			ArrayList<PlaybackActivity> list = sActivities;
@@ -1270,7 +1279,7 @@ public final class PlaybackService extends Service
 		else
 			song = mTimeline.shiftCurrentSong(delta);
 		mCurrentSong = song;
-		if (song == null || song.id == -1 || song.path == null) {
+		if (song == null) {
 			if (MediaUtils.isSongAvailable(getContentResolver())) {
 				int flag = finishAction(mState) == SongTimeline.FINISH_RANDOM ? FLAG_ERROR : FLAG_EMPTY_QUEUE;
 				synchronized (mStateLock) {
@@ -1316,7 +1325,7 @@ public final class PlaybackService extends Service
 				mPreparedMediaPlayer = tmpPlayer; // this was mMediaPlayer and is in reset() state
 				Log.v("VanillaMusic", "Swapped media players");
 			}
-			else if(song.path != null) {
+			else {
 				prepareMediaPlayer(mMediaPlayer, song.path);
 			}
 
@@ -1362,10 +1371,10 @@ public final class PlaybackService extends Service
 	public void onCompletion(MediaPlayer player)
 	{
 
-		// Count this song as played
 		Song song = mTimeline.getSong(0);
-		mHandler.sendMessage(mHandler.obtainMessage(MSG_UPDATE_PLAYCOUNTS, song));
 
+		// Count this song as played
+		mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_UPDATE_PLAYCOUNTS, song), 2500);
 
 		if (finishAction(mState) == SongTimeline.FINISH_REPEAT_CURRENT) {
 			setCurrentSong(0);
@@ -1545,6 +1554,18 @@ public final class PlaybackService extends Service
 		case MSG_UPDATE_PLAYCOUNTS:
 			Song song = (Song)message.obj;
 			mPlayCounts.countSong(song);
+
+			// Update the playcounts playlist in ~20% of all cases if enabled
+			if (mAutoPlPlaycounts > 0 && Math.random() > 0.8) {
+				ContentResolver resolver = getContentResolver();
+				// Add an invisible whitespace to adjust our sorting
+				String playlistName = "\u200B"+getString(R.string.autoplaylist_playcounts_name, mAutoPlPlaycounts);
+				long id = Playlist.createPlaylist(resolver, playlistName);
+				ArrayList<Long> items = mPlayCounts.getTopSongs(mAutoPlPlaycounts);
+				Playlist.addToPlaylist(resolver, id, items);
+			}
+
+
 			break;
 		default:
 			return false;
@@ -1994,7 +2015,7 @@ public final class PlaybackService extends Service
 	 */
 	public PendingIntent createNotificationAction(SharedPreferences prefs)
 	{
-		switch (Integer.parseInt(prefs.getString(PrefKeys.NOTIFICATION_ACTION, "0"))) {
+		switch (Integer.parseInt(prefs.getString(PrefKeys.NOTIFICATION_ACTION, PrefDefaults.NOTIFICATION_ACTION))) {
 		case NOT_ACTION_NEXT_SONG: {
 			Intent intent = new Intent(this, PlaybackService.class);
 			intent.setAction(PlaybackService.ACTION_NEXT_SONG_AUTOPLAY);

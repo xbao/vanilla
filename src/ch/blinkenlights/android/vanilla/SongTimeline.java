@@ -231,9 +231,14 @@ public final class SongTimeline {
 	 * Must be one of SongTimeline.FINISH_*.
 	 */
 	private int mFinishAction;
-
-	// for shuffleAll()
-	private ArrayList<Song> mShuffledSongs;
+	/**
+	 * Prepared (shuffled) replacement playlist
+	 */
+	private ArrayList<Song> mShuffleCache;
+	/**
+	 * Hash code of mSongs while mShuffleCache was generated
+	 */
+	private int mShuffleTicket;
 
 	// for saveActiveSongs()
 	private Song mSavedPrevious;
@@ -363,11 +368,11 @@ public final class SongTimeline {
 
 					// The query may have returned zero results or we might 
 					// have failed to populate some songs: Get rid of all
-					// uninitialized items (where path == null)
+					// uninitialized items
 					Iterator<Song> it = songs.iterator();
 					while (it.hasNext()) {
 						Song e = it.next();
-						if (e.path == null) {
+						if (e.isFilled() == false) {
 							it.remove();
 						}
 					}
@@ -379,9 +384,15 @@ public final class SongTimeline {
 				}
 			}
 
-			mCurrentPos = Math.min(mSongs == null ? 0 : mSongs.size(), in.readInt());
+			mCurrentPos = Math.min(mSongs == null ? 0 : mSongs.size(), Math.abs(in.readInt()));
 			mFinishAction = in.readInt();
 			mShuffleMode = in.readInt();
+
+			// Guard against corruption
+			if (mFinishAction < 0 || mFinishAction >= FINISH_ICONS.length)
+				mFinishAction = 0;
+			if (mShuffleMode < 0 || mShuffleMode >= SHUFFLE_ICONS.length)
+				mShuffleMode = 0;
 		}
 	}
 
@@ -457,12 +468,9 @@ public final class SongTimeline {
 
 		synchronized (this) {
 			saveActiveSongs();
-			mShuffledSongs = null;
 			mShuffleMode = mode;
 			if (mode != SHUFFLE_NONE && mFinishAction != FINISH_RANDOM && !mSongs.isEmpty()) {
-				shuffleAll();
-				ArrayList<Song> songs = mShuffledSongs;
-				mShuffledSongs = null;
+				ArrayList<Song> songs = getShuffledTimeline(false);
 				mCurrentPos = songs.indexOf(mSavedCurrent);
 				mSongs = songs;
 			}
@@ -485,20 +493,24 @@ public final class SongTimeline {
 	}
 
 	/**
-	 * Shuffle all the songs in the timeline, storing the result in
-	 * mShuffledSongs.
+	 * Returns a shuffled (according to mShuffleMode) version
+	 * of the timeline. The returned result will get cached
 	 *
-	 * @return The first song from the shuffled songs.
+	 * @param cached the function may return a cached version if true
+	 * @return a *copy* of a shuffled version of the timeline
 	 */
-	private Song shuffleAll()
+	private ArrayList<Song> getShuffledTimeline(boolean cached)
 	{
-		if (mShuffledSongs != null)
-			return mShuffledSongs.get(0);
+		if (cached == false)
+			mShuffleCache = null;
 
-		ArrayList<Song> songs = new ArrayList<Song>(mSongs);
-		MediaUtils.shuffle(songs, mShuffleMode == SHUFFLE_ALBUMS);
-		mShuffledSongs = songs;
-		return songs.get(0);
+		if (mShuffleCache == null) {
+			ArrayList<Song> songs = new ArrayList<Song>(mSongs);
+			MediaUtils.shuffle(songs, mShuffleMode == SHUFFLE_ALBUMS);
+			mShuffleCache = songs;
+			mShuffleTicket = mSongs.hashCode();
+		}
+		return new ArrayList<Song>(mShuffleCache);
 	}
 
 	/**
@@ -509,12 +521,7 @@ public final class SongTimeline {
 	{
 		synchronized (this) {
 			saveActiveSongs();
-
-			mShuffledSongs = null;
-			shuffleAll();
-			ArrayList<Song> songs = mShuffledSongs;
-			mShuffledSongs = null;
-
+			ArrayList<Song> songs = getShuffledTimeline(false);
 			int newPosition = songs.indexOf(mSavedCurrent);
 			Collections.swap(songs, newPosition, mCurrentPos);
 			mSongs = songs;
@@ -561,7 +568,7 @@ public final class SongTimeline {
 						// empty queue
 						return null;
 					else if (mShuffleMode != SHUFFLE_NONE)
-						song = shuffleAll();
+						song = getShuffledTimeline(true).get(0);
 					else
 						song = timeline.get(0);
 				}
@@ -590,9 +597,7 @@ public final class SongTimeline {
 
 		if (mFinishAction != FINISH_RANDOM && pos == mSongs.size()) {
 			if (mShuffleMode != SHUFFLE_NONE && !mSongs.isEmpty()) {
-				if (mShuffledSongs == null)
-					shuffleAll();
-				mSongs = mShuffledSongs;
+				mSongs = getShuffledTimeline(true);
 			}
 
 			pos = 0;
@@ -604,7 +609,6 @@ public final class SongTimeline {
 		}
 
 		mCurrentPos = pos;
-		mShuffledSongs = null;
 
 		if (mShuffleMode == SHUFFLE_CONTINUOUS) {
 			reshuffleTimeline();
@@ -683,7 +687,8 @@ public final class SongTimeline {
 		int type = query.type;
 		long data = query.data;
 
-		int count = cursor.getCount();
+		int count = cursor.getCount(); // Items found by query
+		int added = 0;                 // Items actually added to the queue
 
 		if (count == 0 && type == MediaUtils.TYPE_FILE && query.selectionArgs.length == 1) {
 			String pathQuery = query.selectionArgs[0];
@@ -743,9 +748,16 @@ public final class SongTimeline {
 
 			for (int j = 0; j != count; ++j) {
 				cursor.moveToPosition(j);
+
 				Song song = new Song(-1);
 				song.populate(cursor);
+				if (song.isFilled() == false) {
+					// Song vanished from device for some reason: we are silently skipping it.
+					continue;
+				}
+
 				timeline.add(addAtPos++, song);
+				added++;
 
 				if (jumpSong == null) {
 					if ((mode == MODE_PLAY_POS_FIRST || mode == MODE_ENQUEUE_POS_FIRST) && j == data) {
@@ -790,7 +802,7 @@ public final class SongTimeline {
 
 		changed();
 
-		return count;
+		return added;
 	}
 
 	/**
@@ -964,6 +976,10 @@ public final class SongTimeline {
 	 */
 	private void changed()
 	{
+		// Invalidate shuffle cache if the timeline *contents* changed in the meantime
+		if (mShuffleCache != null && mShuffleTicket != mSongs.hashCode())
+			mShuffleCache = null;
+
 		if (mCallback != null)
 			mCallback.timelineChanged();
 	}

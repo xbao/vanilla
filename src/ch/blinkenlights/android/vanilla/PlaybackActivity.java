@@ -118,12 +118,12 @@ public abstract class PlaybackActivity extends Activity
 			startService(new Intent(this, PlaybackService.class));
 
 		SharedPreferences prefs = PlaybackService.getSettings(this);
-		mUpAction = Action.getAction(prefs, PrefKeys.SWIPE_UP_ACTION, Action.Nothing);
-		mDownAction = Action.getAction(prefs, PrefKeys.SWIPE_DOWN_ACTION, Action.Nothing);
+		mUpAction = Action.getAction(prefs, PrefKeys.SWIPE_UP_ACTION, PrefDefaults.SWIPE_UP_ACTION);
+		mDownAction = Action.getAction(prefs, PrefKeys.SWIPE_DOWN_ACTION, PrefDefaults.SWIPE_DOWN_ACTION);
 
 		Window window = getWindow();
 
-		if (prefs.getBoolean(PrefKeys.DISABLE_LOCKSCREEN, false))
+		if (prefs.getBoolean(PrefKeys.DISABLE_LOCKSCREEN, PrefDefaults.DISABLE_LOCKSCREEN))
 			window.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
 					| WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
 		else
@@ -294,7 +294,7 @@ public abstract class PlaybackActivity extends Activity
 	 */
 	protected File getFilesystemBrowseStart() {
 		SharedPreferences prefs = PlaybackService.getSettings(this);
-		String folder = prefs.getString(PrefKeys.FILESYSTEM_BROWSE_START, "");
+		String folder = prefs.getString(PrefKeys.FILESYSTEM_BROWSE_START, PrefDefaults.FILESYSTEM_BROWSE_START);
 		File fs_start = new File( folder.equals("") ? Environment.getExternalStorageDirectory().getAbsolutePath() : folder );
 		return fs_start;
 	}
