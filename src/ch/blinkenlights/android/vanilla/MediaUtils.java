@@ -212,7 +212,12 @@ public class MediaUtils {
 
 		// Prefix the SELECTed rows with the current table authority name
 		for (int i=0 ;i<clonedProjection.length; i++) {
-			clonedProjection[i] = authority+"."+clonedProjection[i];
+			if (clonedProjection[i].contains("album_id")) {
+				// special case: 'album_id' doesn't exist in 'album_info'
+				clonedProjection[i] = clonedProjection[i].replace("album_id", "album_info._id");
+				continue;
+			}
+			clonedProjection[i] = clonedProjection[i].replaceFirst(_FORCE_AUDIO_SRC, "$1" + authority + ".$2");
 		}
 
 		sql += TextUtils.join(", ", clonedProjection);

@@ -33,7 +33,9 @@ import android.provider.BaseColumns;
 import android.provider.MediaStore;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
+import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -44,6 +46,7 @@ import android.widget.TextView;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.lang.StringBuilder;
+import java.util.Arrays;
 
 /**
  * MediaAdapter provides an adapter backed by a MediaStore content provider.
@@ -145,6 +148,8 @@ public class MediaAdapter
 	 */
 	private int mCoverCacheType;
 
+	private String[] mWhiteList = {"%/sample/%", "%/Music/%"};
+
 	/**
 	 * Construct a MediaAdapter representing the given <code>type</code> of
 	 * media.
@@ -174,17 +179,21 @@ public class MediaAdapter
 		mCoverCacheType = MediaUtils.TYPE_INVALID;
 		String coverCacheKey = "0"; // SQL dummy entry
 
+		String idField = BaseColumns._ID;
 		switch (type) {
 		case MediaUtils.TYPE_ARTIST:
-			mStore = MediaStore.Audio.Artists.EXTERNAL_CONTENT_URI;
-			mFields = new String[] { MediaStore.Audio.Artists.ARTIST };
-			mFieldKeys = new String[] { MediaStore.Audio.Artists.ARTIST_KEY };
+			// [ artist_id AS _id, 0:0, artist_name]
+			mStore = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+			mFields = new String[]{MediaStore.Audio.Media.ARTIST};
+			mFieldKeys = new String[]{MediaStore.Audio.Media.ARTIST_KEY};
 			mSongSort = MediaUtils.DEFAULT_SORT;
 			mSortEntries = new int[] { R.string.name, R.string.number_of_tracks };
 			mSortValues = new String[] { "artist_key %1$s", "number_of_tracks %1$s,artist_key %1$s" };
+			idField = MediaStore.Audio.Media.ARTIST_ID;
 			break;
 		case MediaUtils.TYPE_ALBUM:
-			mStore = MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI;
+			// [ album_id AS _id, album_id AS _id, album, artist ]
+			mStore = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
 			mFields = new String[] { MediaStore.Audio.Albums.ARTIST, MediaStore.Audio.Albums.ALBUM };
 			// Why is there no artist_key column constant in the album MediaStore? The column does seem to exist.
 			mFieldKeys = new String[] { "artist_key", MediaStore.Audio.Albums.ALBUM_KEY };
@@ -192,9 +201,11 @@ public class MediaAdapter
 			mSortEntries = new int[] { R.string.name, R.string.artist_album, R.string.year, R.string.number_of_tracks, R.string.date_added };
 			mSortValues = new String[] { "album_key %1$s", "artist_key %1$s,album_key %1$s", "minyear %1$s,album_key %1$s", "numsongs %1$s,album_key %1$s", "_id %1$s" };
 			mCoverCacheType = MediaUtils.TYPE_ALBUM;
-			coverCacheKey = BaseColumns._ID;
+			idField = MediaStore.Audio.Media.ALBUM_ID;
+			coverCacheKey = MediaStore.Audio.Media.ALBUM_ID;
 			break;
 		case MediaUtils.TYPE_SONG:
+			//[ song_id AS _id, _data, title, album, artist, album_id, artist_id, duration, track ]
 			mStore = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
 			mFields = new String[] { MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.ALBUM, MediaStore.Audio.Media.TITLE };
 			mFieldKeys = new String[] { MediaStore.Audio.Media.ARTIST_KEY, MediaStore.Audio.Media.ALBUM_KEY, MediaStore.Audio.Media.TITLE_KEY };
@@ -205,9 +216,10 @@ public class MediaAdapter
 			                             "artist_key %1$s,year %1$s,album_key %1$s, track", "album_key %1$s,track",
 			                             "year %1$s,title_key %1$s","_id %1$s", SORT_MAGIC_PLAYCOUNT };
 			mCoverCacheType = MediaUtils.TYPE_ALBUM;
-			coverCacheKey = MediaStore.Audio.Albums.ALBUM_ID;
+			coverCacheKey = MediaStore.Audio.Media.ALBUM_ID;
 			break;
 		case MediaUtils.TYPE_PLAYLIST:
+			// [ playlist_id AS _id, 0, name ]
 			mStore = MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI;
 			mFields = new String[] { MediaStore.Audio.Playlists.NAME };
 			mFieldKeys = null;
@@ -216,6 +228,7 @@ public class MediaAdapter
 			mExpandable = true;
 			break;
 		case MediaUtils.TYPE_GENRE:
+			// [ genre_id AS _id, 0, name ]
 			mStore = MediaStore.Audio.Genres.EXTERNAL_CONTENT_URI;
 			mFields = new String[] { MediaStore.Audio.Genres.NAME };
 			mFieldKeys = null;
@@ -226,10 +239,11 @@ public class MediaAdapter
 			throw new IllegalArgumentException("Invalid value for type: " + type);
 		}
 
+		idField = "DISTINCT " + idField + " AS " + BaseColumns._ID;
 		if (mFields.length == 1)
-			mProjection = new String[] { BaseColumns._ID, coverCacheKey, mFields[0] };
+			mProjection = new String[]{idField, coverCacheKey, mFields[0]};
 		else
-			mProjection = new String[] { BaseColumns._ID, coverCacheKey, mFields[mFields.length - 1], mFields[0] };
+			mProjection = new String[]{idField, coverCacheKey, mFields[mFields.length - 1], mFields[0]};
 	}
 
 	/**
@@ -338,6 +352,24 @@ public class MediaAdapter
 			}
 		}
 
+		if (mStore == MediaStore.Audio.Media.EXTERNAL_CONTENT_URI && mWhiteList.length > 0) {
+			String[] whiteListCopy = Arrays.copyOf(mWhiteList, mWhiteList.length);
+			if (selection.length() != 0)
+				selection.append(" AND ");
+			selection.append("( ");
+			for (int i = 0; i < whiteListCopy.length; i++) {
+				String whiteListedDir = whiteListCopy[i];
+				selection.append(MediaStore.Audio.Media.DATA)
+						.append(" LIKE '")
+						.append(whiteListedDir)
+						.append("'");
+				if (i != whiteListCopy.length - 1) {
+					selection.append(" OR ");
+				}
+			}
+			selection.append(")");
+		}
+
 		if (limiter != null && limiter.type == MediaUtils.TYPE_GENRE) {
 			// Genre is not standard metadata for MediaStore.Audio.Media.
 			// We have to query it through a separate provider. : /
@@ -349,6 +381,14 @@ public class MediaAdapter
 				selection.append(limiter.data);
 			}
 
+			if (projection[0].contains("album_id")) {
+				Log.d("VanillaMusic", "Grouping by album for type " + mType);
+				if(TextUtils.isEmpty(selection)) {
+					selection.append("1=1");
+				}
+				selection.append(") GROUP BY (album_id");
+			}
+
 			return new QueryTask(mStore, projection, selection.toString(), selectionArgs, sort);
 		}
 	}
@@ -356,6 +396,13 @@ public class MediaAdapter
 	@Override
 	public Cursor query()
 	{
+		String whitelistedFolder = PlaybackService.getSettings(mContext)
+				.getString(PrefKeys.LIBRARY_WHITELIST, null);
+		if(TextUtils.isEmpty(whitelistedFolder)) {
+			mWhiteList = new String[] {};
+		} else {
+			mWhiteList = new String[] {whitelistedFolder + "%"};
+		}
 		return buildQuery(mProjection, false).runQuery(mContext.getContentResolver());
 	}
 
