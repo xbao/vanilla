@@ -22,26 +22,20 @@
 
 package ch.blinkenlights.android.vanilla;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Vector;
-import java.util.zip.CRC32;
-
-import junit.framework.Assert;
 import android.content.ContentResolver;
 import android.database.Cursor;
+import android.database.MatrixCursor;
+import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.text.TextUtils;
-import android.database.MatrixCursor;
-import android.media.MediaMetadataRetriever;
 import android.util.Log;
+import junit.framework.Assert;
+
+import java.io.File;
+import java.util.*;
+import java.util.zip.CRC32;
 
 
 /**
@@ -212,7 +206,14 @@ public class MediaUtils {
 
 		// Prefix the SELECTed rows with the current table authority name
 		for (int i=0 ;i<clonedProjection.length; i++) {
-			clonedProjection[i] = authority+"."+clonedProjection[i];
+			if (clonedProjection[i].contains("DISTINCT")) {
+				clonedProjection[i] = "DISTINCT album_info._id";
+				continue;
+			} else if (clonedProjection[i].contains("album_id")) {
+				clonedProjection[i] = clonedProjection[i].replace("album_id", "album_info._id");
+				continue;
+			}
+			clonedProjection[i] = clonedProjection[i].replaceFirst(_FORCE_AUDIO_SRC, "$1" + authority + ".$2");
 		}
 
 		sql += TextUtils.join(", ", clonedProjection);
@@ -222,9 +223,10 @@ public class MediaUtils {
 		if (selection != null && selection.length() > 0)
 			sql += " AND("+selection.replaceAll(_FORCE_AUDIO_SRC, "$1audio.$2")+")";
 
-		if (returnAlbums)
+		boolean selectionContainsGroupBy = selection != null && selection.contains("GROUP BY");
+		if (returnAlbums && !selectionContainsGroupBy) {
 			sql += " GROUP BY album_info._id";
-
+		}
 		if (sort != null && sort.length() > 0)
 			sql += " ORDER BY "+sort.replaceAll(_FORCE_AUDIO_SRC, "$1audio.$2");
 

@@ -25,6 +25,12 @@ package ch.blinkenlights.android.vanilla;
 import android.content.ContentResolver;
 import android.database.Cursor;
 import android.net.Uri;
+import android.text.TextUtils;
+import android.util.Log;
+import android.util.LogPrinter;
+import android.util.Printer;
+
+import java.util.Arrays;
 
 /**
  * Represents a pending query.
@@ -73,6 +79,77 @@ public class QueryTask {
 	 */
 	public Cursor runQuery(ContentResolver resolver)
 	{
+		if (BuildConfig.DEBUG) {
+			dumpQuery(new LogPrinter(Log.VERBOSE, "VanillaMusic"));
+			logAndClose(resolver.query(uri, projection, selection, selectionArgs, sortOrder));
+		}
 		return resolver.query(uri, projection, selection, selectionArgs, sortOrder);
+	}
+
+	public void dumpQuery(Printer printer) {
+		printer.println("uri=" + uri + "," +
+				"projection=" + Arrays.toString(projection) + "," +
+				"selection=" + selection + "," +
+				"selectionArgs=" + Arrays.toString(selectionArgs) + "," +
+				"sortOrder=" + sortOrder);
+	}
+
+	private static void logAndClose(Cursor cursor) {
+		if (cursor == null) {
+			Log.d("VanillaMusic", "null cursor");
+			return;
+		}
+		try {
+			logCursor(cursor);
+		} finally {
+			cursor.close();
+		}
+
+	}
+
+	private static void logCursor(Cursor cursor) {
+		if (cursor.getCount() == 0) {
+			Log.d("VanillaMusic", "empty cursor");
+			return;
+		}
+		Log.d("VanillaMusic", "Count: " + cursor.getCount());
+		final String[] columnNames = cursor.getColumnNames();
+		Log.d("VanillaMusic", "Columns: " + TextUtils.join(",", columnNames));
+		for (int i = 0; i < columnNames.length; i++) {
+			int dotIdx = columnNames[i].lastIndexOf('.');
+			if (dotIdx != -1) {
+				columnNames[i] = columnNames[i].substring(dotIdx + 1);
+			}
+		}
+		while (cursor.moveToNext()) {
+			StringBuilder builder = new StringBuilder();
+			builder.append("[").append(cursor.getPosition()).append("] ");
+			for (String column : columnNames) {
+				builder.append(column).append(":").append(getString(cursor, column));
+				if (column != columnNames[columnNames.length - 1]) {
+					builder.append(", ");
+				}
+			}
+			Log.d("VanillaMusic", builder.toString());
+		}
+	}
+
+	private static String getString(Cursor cursor, String columnName) {
+		int index = cursor.getColumnIndex(columnName);
+		int type = cursor.getType(index);
+		switch (type) {
+			case Cursor.FIELD_TYPE_NULL:
+				return null;
+			case Cursor.FIELD_TYPE_BLOB:
+				return "<blob>";
+			case Cursor.FIELD_TYPE_FLOAT:
+				return String.format("%f", cursor.getFloat(index));
+			case Cursor.FIELD_TYPE_INTEGER:
+				return String.format("%d", cursor.getInt(index));
+			case Cursor.FIELD_TYPE_STRING:
+				return cursor.getString(index);
+		}
+		throw new IllegalArgumentException("type not valid. cursor=" + cursor.toString() + ", " +
+				"column=" + columnName);
 	}
 }
