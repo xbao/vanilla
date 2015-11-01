@@ -221,8 +221,7 @@ public class MediaUtils {
 		if (selection != null && selection.length() > 0)
 			sql += " AND("+selection.replaceAll(_FORCE_AUDIO_SRC, "$1audio.$2")+")";
 
-		boolean selectionContainsGroupBy = selection != null && selection.contains("GROUP BY");
-		if (returnAlbums && !selectionContainsGroupBy) {
+		if (returnAlbums) {
 			sql += " GROUP BY album_info._id";
 		}
 		if (sort != null && sort.length() > 0)

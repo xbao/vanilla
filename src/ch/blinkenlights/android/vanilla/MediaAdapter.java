@@ -33,7 +33,9 @@ import android.provider.BaseColumns;
 import android.provider.MediaStore;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
+import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -368,9 +370,6 @@ public class MediaAdapter
 				selection.append(")");
 			}
 
-			if (projection[0].contains("album_id")) {
-				selection.append(") GROUP BY (album_id");
-			}
 		}
 
 		if (limiter != null && limiter.type == MediaUtils.TYPE_GENRE) {
@@ -382,6 +381,14 @@ public class MediaAdapter
 				if (selection.length() != 0)
 					selection.append(" AND ");
 				selection.append(limiter.data);
+			}
+
+			if (projection[0].contains("album_id")) {
+				Log.d("VanillaMusic", "Grouping by album for type " + mType);
+				if(TextUtils.isEmpty(selection)) {
+					selection.append("1=1");
+				}
+				selection.append(") GROUP BY (album_id");
 			}
 
 			return new QueryTask(mStore, projection, selection.toString(), selectionArgs, sort);
