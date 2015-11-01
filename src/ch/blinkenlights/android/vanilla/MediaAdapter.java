@@ -148,7 +148,7 @@ public class MediaAdapter
 	 */
 	private int mCoverCacheType;
 
-	private String[] mWhiteList = {"%/sample/%", "%/Music/%"};
+	private String[] mWhiteList = { };
 
 	/**
 	 * Construct a MediaAdapter representing the given <code>type</code> of
