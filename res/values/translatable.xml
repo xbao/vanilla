@@ -303,6 +303,8 @@ THE SOFTWARE.
 	<string name="customize_filebrowser_start">Filebrowser starts at this directory</string>
 	<string name="select">Select</string>
 
+    <string name="preferences_library_whitelist">Whitelist</string>
+    <string name="preferences_library_whitelist_summary">Restrict the library contents</string>
 
 	<string name="autoplaylist_playcounts_title">Automatic playlist creation</string>
 	<string name="autoplaylist_playcounts_summary">Automatically create a</string>

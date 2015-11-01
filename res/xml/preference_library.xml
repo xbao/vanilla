@@ -47,6 +47,15 @@ THE SOFTWARE.
 		android:summary="@string/customize_filebrowser_start">
 		<intent
 			android:targetPackage="ch.blinkenlights.android.vanilla"
-			android:targetClass="ch.blinkenlights.android.vanilla.FilebrowserStartActivity" />
+			android:targetClass="ch.blinkenlights.android.vanilla.FilebrowserStartActivity"
+			android:data="filesystem_browse_start"/>
+	</PreferenceScreen>
+	<PreferenceScreen
+			android:title="@string/preferences_library_whitelist"
+			android:summary="@string/preferences_library_whitelist_summary">
+		<intent
+			android:targetPackage="ch.blinkenlights.android.vanilla"
+			android:targetClass="ch.blinkenlights.android.vanilla.FilebrowserStartActivity"
+			android:data="library_whitelist"/>
 	</PreferenceScreen>
 </PreferenceScreen>

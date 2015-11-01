@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.io.File;
 import android.app.Activity;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.View;
 import android.view.MenuItem;
 import android.view.Menu;
@@ -42,15 +43,29 @@ public class FilebrowserStartActivity extends PlaybackActivity {
 	private FilebrowserStartAdapter mListAdapter;
 	private String mCurrentPath;
 	private SharedPreferences.Editor mPrefEditor;
+	private String mPrefKey;
 	
 	@Override  
 	public void onCreate(Bundle savedInstanceState) {
 		ThemeHelper.setTheme(this, R.style.BackActionBar);
 		super.onCreate(savedInstanceState);
+		mPrefKey = getIntent().getDataString();
+		if(TextUtils.isEmpty(mPrefKey)) {
+			throw new NullPointerException("No key for file preference");
+		}
+		if(PrefKeys.FILESYSTEM_BROWSE_START.equals(mPrefKey)) {
+			setTitle(R.string.filebrowser_start);
+			mCurrentPath = (String)getFilesystemBrowseStart().getAbsolutePath();
+		} else if (PrefKeys.LIBRARY_WHITELIST.equals(mPrefKey)) {
+			setTitle(R.string.preferences_library_whitelist);
+			mCurrentPath = PlaybackService.getSettings(this)
+					.getString(mPrefKey, getFilesystemBrowseStart().getAbsolutePath());
+		} else {
+			throw new IllegalArgumentException("Preference key not recognised");
+		}
 
-		setTitle(R.string.filebrowser_start);
+
 		setContentView(R.layout.filebrowser_content);
-		mCurrentPath = (String)getFilesystemBrowseStart().getAbsolutePath();
 		mPrefEditor  = PlaybackService.getSettings(this).edit();
 		mListAdapter = new FilebrowserStartAdapter((FilebrowserStartActivity)this, 0);
 		mPathDisplay = (TextView) findViewById(R.id.path_display);
@@ -61,7 +76,7 @@ public class FilebrowserStartActivity extends PlaybackActivity {
 
 		mSaveButton.setOnClickListener(new View.OnClickListener() {
 			public void onClick(View v) {
-				mPrefEditor.putString(PrefKeys.FILESYSTEM_BROWSE_START, mCurrentPath);
+				mPrefEditor.putString(mPrefKey, mCurrentPath);
 				mPrefEditor.commit();
 				finish();
 			}});
