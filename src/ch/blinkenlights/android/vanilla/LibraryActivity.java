@@ -73,8 +73,7 @@ public class LibraryActivity
 	extends PlaybackActivity
 	implements DialogInterface.OnClickListener
 	         , DialogInterface.OnDismissListener
-	         , SearchView.OnQueryTextListener
-{
+	         , SearchView.OnQueryTextListener, SharedPreferences.OnSharedPreferenceChangeListener {
 
 
 	/**
@@ -186,6 +185,7 @@ public class LibraryActivity
 		mViewPager = pager;
 
 		SharedPreferences settings = PlaybackService.getSettings(this);
+		settings.registerOnSharedPreferenceChangeListener(this);
 		pager.setOnPageChangeListener(pagerAdapter);
 
 		View controls = getLayoutInflater().inflate(R.layout.actionbar_controls, null);
@@ -863,6 +863,20 @@ public class LibraryActivity
 		}
 		default:
 			return super.onOptionsItemSelected(item);
+		}
+	}
+
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		SharedPreferences settings = PlaybackService.getSettings(this);
+		settings.unregisterOnSharedPreferenceChangeListener(this);
+	}
+
+	@Override
+	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+		if(PrefKeys.LIBRARY_WHITELIST.equals(key)) {
+			mPagerAdapter.invalidateData();
 		}
 	}
 
