@@ -206,10 +206,8 @@ public class MediaUtils {
 
 		// Prefix the SELECTed rows with the current table authority name
 		for (int i=0 ;i<clonedProjection.length; i++) {
-			if (clonedProjection[i].contains("DISTINCT")) {
-				clonedProjection[i] = "DISTINCT album_info._id";
-				continue;
-			} else if (clonedProjection[i].contains("album_id")) {
+			if (clonedProjection[i].contains("album_id")) {
+				// special case: 'album_id' doesn't exist in 'album_info'
 				clonedProjection[i] = clonedProjection[i].replace("album_id", "album_info._id");
 				continue;
 			}
