@@ -29,6 +29,7 @@ import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.graphics.Color;
 import android.net.Uri;
+import android.preference.PreferenceManager;
 import android.provider.BaseColumns;
 import android.provider.MediaStore;
 import android.text.Spannable;
@@ -398,6 +399,13 @@ public class MediaAdapter
 	@Override
 	public Cursor query()
 	{
+		String whitelistedFolder = PreferenceManager.getDefaultSharedPreferences(mContext)
+				.getString(PrefKeys.LIBRARY_WHITELIST, null);
+		if(TextUtils.isEmpty(whitelistedFolder)) {
+			mWhiteList = new String[] {};
+		} else {
+			mWhiteList = new String[] {whitelistedFolder + "%"};
+		}
 		return buildQuery(mProjection, false).runQuery(mContext.getContentResolver());
 	}
 
