@@ -191,8 +191,10 @@ public class MediaUtils {
 	 * @param selection The selection to pass to the query, or null.
 	 * @param selectionArgs The arguments to substitute into the selection.
 	 * @param sort The sort order.
+	 * @param type The media type to query and return
+	 * @param returnSongs returns matching songs instead of `type' if true
 	 */
-	public static QueryTask buildGenreQuery(long id, String[] projection, String selection, String[] selectionArgs, String sort, boolean returnAlbums)
+	public static QueryTask buildGenreQuery(long id, String[] projection, String selection, String[] selectionArgs, String sort, int type, boolean returnSongs)
 	{
 		// Note: This function works on a raw sql query with way too much internal
 		// knowledge about the mediaProvider SQL table layout. Yes: it's ugly.
@@ -202,7 +204,12 @@ public class MediaUtils {
 		Uri uri = MediaStore.Audio.Genres.Members.getContentUri("external", id);
 		String[] clonedProjection = projection.clone(); // we modify the projection, but this should not be visible to the caller
 		String sql = "";
-		String authority = (returnAlbums ? "album_info" : "audio");
+		String authority = "audio";
+
+		if (type == TYPE_ARTIST)
+			authority = "artist_info";
+		if (type == TYPE_ALBUM)
+			authority = "album_info";
 
 		// Our raw SQL query includes the album_info table (well: it's actually a view)
 		// which shares some columns with audio.
@@ -212,18 +219,22 @@ public class MediaUtils {
 
 		// Prefix the SELECTed rows with the current table authority name
 		for (int i=0 ;i<clonedProjection.length; i++) {
-			clonedProjection[i] = authority+"."+clonedProjection[i];
+			if (clonedProjection[i].equals("0") == false) // do not prefix fake rows
+				clonedProjection[i] = (returnSongs ? "audio" : authority)+"."+clonedProjection[i];
 		}
 
 		sql += TextUtils.join(", ", clonedProjection);
-		sql += " FROM audio_genres_map_noid, audio, album_info";
-		sql += " WHERE(audio.album_id = album_info._id AND audio._id = audio_id AND genre_id=?)";
+		sql += " FROM audio_genres_map_noid, audio" + (authority.equals("audio") ? "" : ", "+authority);
+		sql += " WHERE(audio._id = audio_id AND genre_id=?)";
 
 		if (selection != null && selection.length() > 0)
 			sql += " AND("+selection.replaceAll(_FORCE_AUDIO_SRC, "$1audio.$2")+")";
 
-		if (returnAlbums)
-			sql += " GROUP BY album_info._id";
+		if (type == TYPE_ARTIST)
+			sql += " AND(artist_info._id = audio.artist_id)" + (returnSongs ? "" : " GROUP BY artist_info._id");
+
+		if (type == TYPE_ALBUM)
+			sql += " AND(album_info._id = audio.album_id)" + (returnSongs ? "" : " GROUP BY album_info._id");
 
 		if (sort != null && sort.length() > 0)
 			sql += " ORDER BY "+sort.replaceAll(_FORCE_AUDIO_SRC, "$1audio.$2");
@@ -256,7 +267,7 @@ public class MediaUtils {
 		case TYPE_PLAYLIST:
 			return buildPlaylistQuery(id, projection, selection);
 		case TYPE_GENRE:
-			return buildGenreQuery(id, projection, selection, null,  MediaStore.Audio.Genres.Members.TITLE_KEY, false);
+			return buildGenreQuery(id, projection, selection, null,  MediaStore.Audio.Genres.Members.TITLE_KEY, TYPE_SONG, true);
 		default:
 			throw new IllegalArgumentException("Specified type not valid: " + type);
 		}
@@ -273,7 +284,7 @@ public class MediaUtils {
 	{
 		String[] projection = { "_id" };
 		Uri uri = CompatHoneycomb.getContentUriForAudioId((int)id);
-		Cursor cursor = resolver.query(uri, projection, null, null, null);
+		Cursor cursor = queryResolver(resolver, uri, projection, null, null, null);
 		
 		if (cursor != null) {
 			if (cursor.moveToNext())
@@ -380,7 +391,7 @@ public class MediaUtils {
 			Uri media = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
 			String selection = MediaStore.Audio.Media.IS_MUSIC;
 			selection += " AND length(_data)";
-			Cursor cursor = resolver.query(media, new String[]{"count(_id)"}, selection, null, null);
+			Cursor cursor = queryResolver(resolver, media, new String[]{"count(_id)"}, selection, null, null);
 			if (cursor == null) {
 				sSongCount = 0;
 			} else {
@@ -404,7 +415,7 @@ public class MediaUtils {
 		Uri media = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
 		String selection = MediaStore.Audio.Media.IS_MUSIC;
 		selection += " AND length(_data)";
-		Cursor cursor = resolver.query(media, Song.EMPTY_PROJECTION, selection, null, null);
+		Cursor cursor = queryResolver(resolver, media, Song.EMPTY_PROJECTION, selection, null, null);
 		if (cursor == null || cursor.getCount() == 0) {
 			sSongCount = 0;
 			return null;
@@ -423,6 +434,30 @@ public class MediaUtils {
 		shuffle(ids);
 
 		return ids;
+	}
+
+	/**
+	 * Runs a query on the passed content resolver.
+	 * Catches (and returns null on) SecurityException (= user revoked read permission)
+	 *
+	 * @param resolver The content resolver to use
+	 * @param uri the uri to query
+	 * @param projection the projection to use
+	 * @param selection the selection to use
+	 * @param selectionArgs arguments for the selection
+	 * @param sortOrder sort order of the returned result
+	 *
+	 * @return a cursor or null
+	 */
+	public static Cursor queryResolver(ContentResolver resolver, Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder)
+	{
+		Cursor cursor = null;
+		try {
+			cursor = resolver.query(uri, projection, selection, selectionArgs, sortOrder);
+		} catch(java.lang.SecurityException e) {
+			// we do not have read permission - just return a null cursor
+		}
+		return cursor;
 	}
 
 	public static void onMediaChange()

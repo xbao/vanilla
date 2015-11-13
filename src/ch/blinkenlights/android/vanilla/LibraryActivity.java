@@ -139,7 +139,7 @@ public class LibraryActivity
 	private TextView mTitle;
 	private TextView mArtist;
 	private ImageView mCover;
-	private View mEmptyQueue;
+	private View mPermissionRequest;
 	private MenuItem mSearchMenuItem;
 
 	private HorizontalScrollView mLimiterScroller;
@@ -232,6 +232,15 @@ public class LibraryActivity
 		mCover = (ImageView)controls.findViewById(R.id.cover);
 		controls.setOnClickListener(this);
 		mActionControls = controls;
+
+		mPermissionRequest = (View)findViewById(R.id.permission_request);
+
+		if(PermissionRequestActivity.havePermissions(this) == false) {
+			// We are lacking permissions: bind and display nag bar
+			mPermissionRequest.setOnClickListener(this);
+			mPermissionRequest.setVisibility(View.VISIBLE);
+		}
+
 
 		loadTabOrder();
 		int page = settings.getInt(PrefKeys.LIBRARY_PAGE, PrefDefaults.LIBRARY_PAGE);
@@ -562,8 +571,8 @@ public class LibraryActivity
 	{
 		if (view == mCover || view == mActionControls) {
 			openPlaybackActivity();
-		} else if (view == mEmptyQueue) {
-			setState(PlaybackService.get(this).setFinishAction(SongTimeline.FINISH_RANDOM));
+		} else if (view == mPermissionRequest) {
+			PermissionRequestActivity.requestPermissions(this, getIntent());
 		} else if (view.getTag() != null) {
 			// a limiter view was clicked
 			int i = (Integer)view.getTag();
@@ -602,7 +611,7 @@ public class LibraryActivity
 		ContentResolver resolver = getContentResolver();
 		Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
 		String[] projection = new String[] { MediaStore.Audio.Media.ARTIST_ID, MediaStore.Audio.Media.ALBUM_ID, MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.ALBUM };
-		Cursor cursor = resolver.query(uri, projection, selection, null, null);
+		Cursor cursor = MediaUtils.queryResolver(resolver, uri, projection, selection, null, null);
 		if (cursor != null) {
 			if (cursor.moveToNext()) {
 				String[] fields;
@@ -671,6 +680,7 @@ public class LibraryActivity
 	private static final int MENU_ENQUEUE_ALL = 10;
 	private static final int MENU_MORE_FROM_ALBUM = 11;
 	private static final int MENU_MORE_FROM_ARTIST = 12;
+	private static final int MENU_OPEN_EXTERNAL = 13;
 
 	/**
 	 * Creates a context menu for an adapter row.
@@ -689,6 +699,9 @@ public class LibraryActivity
 			int type = rowData.getIntExtra(LibraryAdapter.DATA_TYPE, MediaUtils.TYPE_INVALID);
 
 			menu.setHeaderTitle(rowData.getStringExtra(LibraryAdapter.DATA_TITLE));
+
+			if (FileUtils.canDispatchIntent(rowData))
+				menu.add(0, MENU_OPEN_EXTERNAL, 0, R.string.open).setIntent(rowData);
 			menu.add(0, MENU_PLAY, 0, R.string.play).setIntent(rowData);
 			menu.add(0, MENU_ENQUEUE_AS_NEXT, 0, R.string.enqueue_as_next).setIntent(rowData);
 			menu.add(0, MENU_ENQUEUE, 0, R.string.enqueue).setIntent(rowData);
@@ -781,6 +794,10 @@ public class LibraryActivity
 				});
 				dialog.create().show();
 			break;
+		case MENU_OPEN_EXTERNAL: {
+			FileUtils.dispatchIntent(this, intent);
+			break;
+		}
 		case MENU_ADD_TO_PLAYLIST: {
 			SubMenu playlistMenu = item.getSubMenu();
 			playlistMenu.add(0, MENU_NEW_PLAYLIST, 0, R.string.new_playlist).setIntent(intent);
@@ -968,10 +985,6 @@ public class LibraryActivity
 	protected void onStateChange(int state, int toggled)
 	{
 		super.onStateChange(state, toggled);
-
-		if ((toggled & PlaybackService.FLAG_EMPTY_QUEUE) != 0 && mEmptyQueue != null) {
-			mEmptyQueue.setVisibility((state & PlaybackService.FLAG_EMPTY_QUEUE) == 0 ? View.GONE : View.VISIBLE);
-		}
 	}
 
 	@Override
@@ -1029,10 +1042,11 @@ public class LibraryActivity
 		mLastActedId = LibraryAdapter.INVALID_ID;
 		updateLimiterViews();
 		CompatHoneycomb.selectTab(this, position);
-		if (adapter != null && adapter.getLimiter() == null) {
+		if (adapter != null && (adapter.getLimiter() == null || adapter.getMediaType() == MediaUtils.TYPE_FILE)) {
 			// Save current page so it is opened on next startup. Don't save if
 			// the page was expanded to, as the expanded page isn't the starting
-			// point.
+			// point. This limitation does not affect the files tab as the limiter
+			// (the files almost always have a limiter)
 			Handler handler = mHandler;
 			handler.sendMessage(mHandler.obtainMessage(MSG_SAVE_PAGE, position, 0));
 		}
