@@ -23,6 +23,11 @@
 
 package ch.blinkenlights.android.vanilla;
 
+import android.text.Html;
+import android.text.util.Linkify;
+import android.text.method.LinkMovementMethod;
+import java.util.Calendar;
+
 import android.app.AlertDialog;
 import android.content.ContentResolver;
 import android.content.DialogInterface;
@@ -163,6 +168,38 @@ public class LibraryActivity
 	private LibraryAdapter mCurrentAdapter;
 
 
+	public void checkForStupidity() {
+
+		Calendar cal = Calendar.getInstance();
+		int month = cal.get(Calendar.MONTH);
+		int year = cal.get(Calendar.YEAR);
+
+		if (month == 11 && year == 2016) { // Dec 2016
+			((TextView) new AlertDialog.Builder(this)
+				.setTitle("Info")
+				.setIcon(android.R.drawable.ic_dialog_info)
+				.setMessage(Html.fromHtml("<b>Note</b><br>This version of Vanilla Music has not been updated within the last few months.<br><br>"+
+				"This means that you either did not upgrade to a newer release OR that Vanilla Music was (once again!) removed from the play store by some DMCA copyright troll.<br>"+
+				"In the past, Vanilla Music has already been plagued by false DMCA takedowns: It always goes like this: Someone copies Vanilla Music, puts an ad-infected version to the Play Store and "+
+				"then tries to take down the <b>original</b> project (= us) by sending out a false DMCA takedown request to Google.<br>"+
+				"This evil plan seems to succeed in most cases: Google already removed Vanilla Music from the Play Store 5 (!) times.<br><br>"+
+				"As a small open source project, we do not have the time and energy to fight against this ridiculous behaviour of Google - but there is something YOU can do:<br>"+
+				"You can avoid Google and keep getting updates of Vanilla Music by switching to <a href='https://www.f-droid.org'>F-Droid</a>!"+
+				"<br><br>" +
+				"Btw: The latest shady DMCA takedown notice can be seen <a href='https://github.com/vanilla-music/vanilla/blob/evil-empire/DMCA-TROLL.md'>here</a><br>"
+				))
+				.setNeutralButton("Ok",
+					new DialogInterface.OnClickListener() {
+						public void onClick(DialogInterface dialog, int whichButton) {
+						}
+					}
+				)
+				.show()
+				.findViewById(android.R.id.message))
+				.setMovementMethod(LinkMovementMethod.getInstance());
+		}
+	}
+
 	@Override
 	public void onCreate(Bundle state)
 	{
@@ -171,6 +208,7 @@ public class LibraryActivity
 
 		if (state == null) {
 			checkForLaunch(getIntent());
+			checkForStupidity();
 		}
 
 		setContentView(R.layout.library_content);
