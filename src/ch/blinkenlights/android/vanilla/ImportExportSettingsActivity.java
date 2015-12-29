@@ -253,9 +253,6 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 
 			final Map<String, ?> stored = readPreferenceMap(new FileInputStream(file));
 
-			Log.d("VanillaMusic", "stored: " + stored.toString());
-			Log.d("VanillaMusic", "current: " + current.toString());
-
 			if (stored.equals(current.getAll())) {
 				return SAME_AS_CURRENT;
 			} else {
