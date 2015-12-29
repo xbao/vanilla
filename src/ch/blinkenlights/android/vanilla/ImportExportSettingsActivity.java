@@ -43,6 +43,13 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.Map;
 
+/**
+ * An Activity that allows the user to
+ * A) save their current settings (aka preferences) to a file
+ * B) load a file of previously saved settings, replacing their current settings
+ * C) check whether the settings stored in a file are the same as their current settings
+ *
+ */
 public class ImportExportSettingsActivity extends Activity implements View.OnClickListener {
 
 	private SharedPreferences mPreferences;
@@ -78,6 +85,10 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 		updateFileState();
 	}
 
+	/**
+	 * Handles press on the top-left home/back button
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		if (item.getItemId() == android.R.id.home) {
@@ -88,6 +99,13 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 		}
 	}
 
+	/**
+	 * Handles a click on the {@link #mImportButton} and the {@link #mExportButton}.
+	 *
+	 * See also {@link #importPreferences}, {@link #exportPreferences}
+	 *
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void onClick(final View v) {
 		boolean export = v == mExportButton;
@@ -129,6 +147,10 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 		});
 	}
 
+	/**
+	 * Reads the settings from the file, updates the text content of {@link R.id#file_state}. See
+	 * {@link SettingsFileState} for the different states and their descriptions
+	 */
 	private void updateFileState() {
 
 		TextView stateTextView = (TextView) findViewById(R.id.file_state);
@@ -150,7 +172,7 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 	}
 
 	/**
-	 * Replaces the view with an error message and a stack trace
+	 * Replaces the Activity's view with an error message and a stack trace
 	 *
 	 * @param message The message to show. Displayed in red.
 	 * @param error The throwable that caused the error.
@@ -234,11 +256,28 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 		}
 	}
 
+	/**
+	 * The possible states of the settings file
+	 */
 	private enum SettingsFileState {
+		/**
+		 * The settings file doesn't exist
+		 */
 		DOES_NOT_EXIST(R.string.settings_no_file),
+		/**
+		 * The settings file exists and contains settings that are identical to the current user's
+		 * settings
+		 */
 		SAME_AS_CURRENT(R.string.settings_file_same_as_current),
+		/**
+		 * The settings file exists and contains settings that are different from the current user's
+		 * settings
+		 */
 		DIFFERS_FROM_CURRENT(R.string.settings_file_differs_from_current);
 
+		/**
+		 * String resource id containing descriptive text of the state
+		 */
 		private final int statusTextId;
 
 		SettingsFileState(final int statusTextId) {

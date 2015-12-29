@@ -64,7 +64,10 @@ public class PreferencesActivity extends PreferenceActivity {
 
 	/**
 	 * The receiver that's called when settings are imported from the backup file ({@link
-	 * ImportExportSettingsActivity#ACTION_SETTINGS_IMPORTED})
+	 * ImportExportSettingsActivity#ACTION_SETTINGS_IMPORTED}).
+	 *
+	 * We close the settings screen when the settings are updated externally to avoid needing to
+	 * have the settings screen update dynamically
 	 */
 	private BroadcastReceiver mSettingsImportedReceiver = new BroadcastReceiver() {
 
