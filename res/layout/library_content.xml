@@ -27,13 +27,13 @@ THE SOFTWARE.
 	android:layout_width="fill_parent"
 	android:layout_height="fill_parent">
 
-	<View
-		android:id="@+id/actionbar_elevation_hack"
-		android:layout_width="fill_parent"
-		android:layout_height="1px"
-		android:background="?float_color"
+	<android.support.iosched.tabs.VanillaTabLayout
+		android:id="@+id/sliding_tabs"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
 		android:elevation="4dp"
-	/>
+		android:background="@color/tabs_background" />
+
 	<android.support.v4.view.ViewPager
 		android:id="@+id/pager"
 		android:layout_width="fill_parent"
@@ -50,6 +50,6 @@ THE SOFTWARE.
 			android:layout_width="wrap_content"
 			android:layout_height="fill_parent" />
 	</HorizontalScrollView>
-	<include layout="@layout/permission_request" />
+	<include layout="@layout/bottombar_controls" android:id="@+id/bottombar_controls" />
 </LinearLayout>
 
