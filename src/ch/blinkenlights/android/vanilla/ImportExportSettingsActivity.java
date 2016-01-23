@@ -61,7 +61,7 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 	private View mImportButton;
 	private View mExportButton;
 	private CharSequence mStatusFormat;
-
+	private TextView mStateTextView;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 
@@ -77,6 +77,7 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 
 		mImportButton = findViewById(R.id.import_settings);
 		mExportButton = findViewById(R.id.export_settings);
+		mStateTextView = (TextView) findViewById(R.id.file_state);
 
 		mImportButton.setOnClickListener(this);
 		mExportButton.setOnClickListener(this);
@@ -153,8 +154,6 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 	 */
 	private void updateFileState() {
 
-		TextView stateTextView = (TextView) findViewById(R.id.file_state);
-
 		// Compare current settings to saved
 		final SettingsFileState settingsFileState;
 		try {
@@ -162,13 +161,16 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 		} catch (IOException e) {
 			// This is generic IO error (we didn't attempt any packing/unpacking)
 			e.printStackTrace();
-			stateTextView.setText(R.string.settings_error_reading_file);
+			mStateTextView.setText(R.string.settings_error_reading_file);
 			return;
 		}
+		onFileStateChange(settingsFileState);
+	}
 
-		stateTextView.setText(String.format(mStatusFormat.toString(), getString(settingsFileState
+	private void onFileStateChange(SettingsFileState newState) {
+		mStateTextView.setText(String.format(mStatusFormat.toString(), getString(newState
 				.statusTextId)));
-		mImportButton.setEnabled(settingsFileState != SettingsFileState.DOES_NOT_EXIST);
+		mImportButton.setEnabled(newState != SettingsFileState.DOES_NOT_EXIST);
 	}
 
 	/**
