@@ -44,7 +44,7 @@
 			android:paddingLeft="8dp"
 			android:gravity="left|center_vertical"
 			android:minHeight="36sp"
-			tools:text="/storage/0D00-131F/vanilla_settings"/>
+			tools:text="/storage/external/vanilla_settings_backup"/>
 	</LinearLayout>
 
 	<View
@@ -61,17 +61,17 @@
 		android:layout_marginRight="8dp"
 		android:orientation="vertical">
 		<Button
-			android:id="@+id/import_settings"
+			android:id="@+id/restore_settings"
 			style="?android:buttonBarButtonStyle"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:text="@string/import_settings"/>
+			android:text="@string/restore_settings"/>
 		<Button
-			android:id="@+id/export_settings"
+			android:id="@+id/backup_settings"
 			style="?android:buttonBarButtonStyle"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:text="@string/export_settings"/>
+			android:text="@string/backup_settings"/>
 	</LinearLayout>
 
 </LinearLayout>

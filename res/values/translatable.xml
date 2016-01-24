@@ -315,13 +315,13 @@ THE SOFTWARE.
 	<string name="permission_request_summary">Vanilla Music needs read permission to display your music library</string>
 	<string name="ok">Ok</string>
 
-	<string name="import_export_settings_title">Import/Export Settings</string>
-	<string name="import_settings">Import</string>
-	<string name="export_settings">Export</string>
-	<string name="import_settings_toast">Settings imported</string>
-	<string name="export_settings_toast">Settings exported</string>
-	<string name="import_settings_error">Error importing settings</string>
-	<string name="export_settings_error">Error exporting settings</string>
-	<string name="import_confirm_overwrite_dialog_title">Overwrite current settings?</string>
-	<string name="export_confirm_overwrite_dialog_title">Overwrite existing file?</string>
+	<string name="backup_restore_settings_title">Backup/Restore Settings</string>
+	<string name="backup_settings">Backup</string>
+	<string name="restore_settings">Restore</string>
+	<string name="backup_settings_toast">Settings saved</string>
+	<string name="restore_settings_toast">Settings restored</string>
+	<string name="backup_settings_error">Error backing up settings</string>
+	<string name="restore_settings_error">Error restoring settings</string>
+	<string name="backup_confirm_overwrite_dialog_title">Overwrite existing backup?</string>
+	<string name="restore_confirm_overwrite_dialog_title">Overwrite current settings?</string>
 </resources>

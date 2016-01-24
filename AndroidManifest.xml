@@ -146,7 +146,7 @@ THE SOFTWARE.
 		<activity
 			android:name="PreferencesActivity" />
 		<activity
-			android:name="ImportExportSettingsActivity"/>
+			android:name=".BackupRestoreSettingsActivity"/>
 		<activity
 			android:name="TabOrderActivity" />
 		<activity

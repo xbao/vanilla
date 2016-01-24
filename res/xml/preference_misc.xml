@@ -72,9 +72,9 @@ THE SOFTWARE.
 		android:summary="@string/readahead_summary" />
 
 	<PreferenceScreen
-		android:title="@string/import_export_settings_title">
+		android:title="@string/backup_restore_settings_title">
 		<intent
 			android:targetPackage="ch.blinkenlights.android.vanilla"
-			android:targetClass="ch.blinkenlights.android.vanilla.ImportExportSettingsActivity"/>
+			android:targetClass="ch.blinkenlights.android.vanilla.BackupRestoreSettingsActivity"/>
 	</PreferenceScreen>
 </PreferenceScreen>

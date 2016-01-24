@@ -51,16 +51,16 @@ import java.util.Map;
  * B) load a file of previously saved settings, replacing their current settings
  * C) check whether the settings stored in a file are the same as their current settings
  */
-public class ImportExportSettingsActivity extends Activity {
+public class BackupRestoreSettingsActivity extends Activity {
 
 	private SharedPreferences mPreferences;
 
-	public static final String ACTION_SETTINGS_IMPORTED =
-			"ch.blinkenlights.android.vanilla.action.SETTINGS_IMPORTED";
+	public static final String ACTION_SETTINGS_RESTORED =
+			"ch.blinkenlights.android.vanilla.action.SETTINGS_RESTORED";
 	private final File mSettingsFile = new File(Environment.getExternalStorageDirectory(),
-			"vanilla_settings");
-	private View mImportButton;
-	private View mExportButton;
+			"vanilla_settings_backup");
+	private View mRestoreButton;
+	private View mBackupButton;
 	private SettingsFileState mSettingsFileState;
 
 	@Override
@@ -68,26 +68,26 @@ public class ImportExportSettingsActivity extends Activity {
 
 		ThemeHelper.setTheme(this, R.style.BackActionBar);
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.import_export_settings_activity);
+		setContentView(R.layout.backup_restore_settings_activity);
 
 		mPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
 		TextView filePathTextView = (TextView) findViewById(R.id.file_path);
 		filePathTextView.setText(mSettingsFile.getPath());
 
-		mImportButton = findViewById(R.id.import_settings);
-		mExportButton = findViewById(R.id.export_settings);
+		mRestoreButton = findViewById(R.id.restore_settings);
+		mBackupButton = findViewById(R.id.backup_settings);
 
-		mImportButton.setOnClickListener(new View.OnClickListener() {
+		mRestoreButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(final View v) {
-				performOperationWithConfirm(Operation.IMPORT);
+				performOperationWithConfirm(Operation.RESTORE);
 			}
 		});
-		mExportButton.setOnClickListener(new View.OnClickListener() {
+		mBackupButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(final View v) {
-				performOperationWithConfirm(Operation.EXPORT);
+				performOperationWithConfirm(Operation.BACKUP);
 			}
 		});
 
@@ -137,7 +137,7 @@ public class ImportExportSettingsActivity extends Activity {
 	}
 
 	/**
-	 * Sets {@link #mSettingsFileState}, enabling or disabling the import/export buttons as
+	 * Sets {@link #mSettingsFileState}, enabling or disabling the backup/restore buttons as
 	 * appropriate
 	 *
 	 * @param newState The new file state. Must not be null
@@ -147,22 +147,22 @@ public class ImportExportSettingsActivity extends Activity {
 			return;
 		}
 		mSettingsFileState = newState;
-		// User can import only if the file exists and it is not the same as their current
+		// User can restore only if the file exists and it is not the same as their current
 		// preferences
-		mImportButton.setEnabled(newState == SettingsFileState.DIFFERS_FROM_CURRENT);
+		mRestoreButton.setEnabled(newState == SettingsFileState.DIFFERS_FROM_CURRENT);
 
-		// User can export if there's no existing file or the file differs from their current
+		// User can backup if there's no existing file or the file differs from their current
 		// preferences
-		boolean userCanExport = newState == SettingsFileState.DOES_NOT_EXIST ||
+		boolean userCanBackup = newState == SettingsFileState.DOES_NOT_EXIST ||
 				newState == SettingsFileState.DIFFERS_FROM_CURRENT;
-		mExportButton.setEnabled(userCanExport);
+		mBackupButton.setEnabled(userCanBackup);
 	}
 
 	/**
 	 * Replaces the Activity's view with an error message and a stack trace
 	 *
 	 * @param operation The {@link ch.blinkenlights.android.vanilla
-	 * .ImportExportSettingsActivity.Operation} that failed.
+	 * .BackupRestoreSettingsActivity.Operation} that failed.
 	 * @param error The throwable that caused the error.
 	 */
 	private void onTerribleFailure(Operation operation, Throwable error) {
@@ -170,7 +170,7 @@ public class ImportExportSettingsActivity extends Activity {
 		final ViewGroup rootView = (ViewGroup) findViewById(R.id.settings_root);
 
 		rootView.removeAllViews();
-		LayoutInflater.from(this).inflate(R.layout.import_export_settings_error, rootView, true);
+		LayoutInflater.from(this).inflate(R.layout.backup_restore_settings_error, rootView, true);
 
 		TextView errorMessageView = (TextView) rootView.findViewById(R.id.error_message);
 		errorMessageView.setText(message);
@@ -180,8 +180,9 @@ public class ImportExportSettingsActivity extends Activity {
 	}
 
 	/**
-	 * Runs a given import/export operation. If the file is different to their current settings, we
-	 * first ask the user to confirm that they want to overwrite their existing file/preferences
+	 * Runs a given backup/restore operation. If the existing backup is different to their current
+	 * settings, we first ask the user to confirm that they want to overwrite their existing backup
+	 * file/preferences
 	 *
 	 * @param operation The operation to run if the user confirms the overwrite or if nothing will
 	 * be overwritten
@@ -190,7 +191,7 @@ public class ImportExportSettingsActivity extends Activity {
 	 */
 	private void performOperationWithConfirm(final Operation operation) {
 		if (mSettingsFileState == SettingsFileState.DIFFERS_FROM_CURRENT) {
-			new AlertDialog.Builder(ImportExportSettingsActivity.this)
+			new AlertDialog.Builder(BackupRestoreSettingsActivity.this)
 					.setTitle(operation.confirmDialogTitleId)
 					.setPositiveButton(R.string.yes, new DialogInterface.OnClickListener() {
 						@Override
@@ -206,17 +207,17 @@ public class ImportExportSettingsActivity extends Activity {
 	}
 
 	/**
-	 * Runs an import/export operation then updates the settings file state.
+	 * Runs an backup/restore operation then updates the settings file state.
 	 *
 	 * Failures are handled by {@link #onTerribleFailure(Operation, Throwable)}.
 	 *
-	 * On success we show a Toast. In addition, after importing settings we
-	 * broadcast an intent with {@link #ACTION_SETTINGS_IMPORTED} and finish this activity.
+	 * On success we show a Toast. In addition, after restoring settings we
+	 * broadcast an intent with {@link #ACTION_SETTINGS_RESTORED} and finish this activity.
 	 *
 	 * @param operation The operation to run.
 	 * @see #onTerribleFailure(Operation, Throwable)
 	 * @see Operation#toastTextId
-	 * @see PreferencesActivity#mSettingsImportedReceiver
+	 * @see PreferencesActivity#mSettingsRestoredReceiver
 	 * @see OperationImpls
 	 */
 	private void performOperation(Operation operation) {
@@ -229,12 +230,12 @@ public class ImportExportSettingsActivity extends Activity {
 		}
 
 		if (operationSucceeded) {
-			Toast.makeText(ImportExportSettingsActivity.this,
+			Toast.makeText(BackupRestoreSettingsActivity.this,
 					operation.toastTextId, Toast.LENGTH_SHORT).show();
-			if (operation == Operation.IMPORT) {
-				final Intent settingsImportedIntent = new Intent(ACTION_SETTINGS_IMPORTED);
-				settingsImportedIntent.setPackage(getPackageName());
-				sendBroadcast(settingsImportedIntent);
+			if (operation == Operation.RESTORE) {
+				final Intent settingsRestoredIntent = new Intent(ACTION_SETTINGS_RESTORED);
+				settingsRestoredIntent.setPackage(getPackageName());
+				sendBroadcast(settingsRestoredIntent);
 				postFinish();
 			}
 		}
@@ -242,25 +243,25 @@ public class ImportExportSettingsActivity extends Activity {
 	}
 
 	/**
-	 * An enum that encapsulates static differences between the import and export operations
+	 * An enum that encapsulates static differences between the backup and restore operations
 	 */
 	private enum Operation {
-		EXPORT(R.string.export_settings_toast,
-				R.string.export_settings_error,
-				R.string.export_confirm_overwrite_dialog_title) {
+		BACKUP(R.string.backup_settings_toast,
+				R.string.backup_settings_error,
+				R.string.backup_confirm_overwrite_dialog_title) {
 			@Override
 			void run(final SharedPreferences preferences, final File settingsFile)
 					throws IOException {
-				OperationImpls.exportPreferences(preferences, new FileOutputStream(settingsFile));
+				OperationImpls.backupPreferences(preferences, new FileOutputStream(settingsFile));
 			}
 		},
-		IMPORT(R.string.import_settings_toast,
-				R.string.import_settings_error,
-				R.string.import_confirm_overwrite_dialog_title) {
+		RESTORE(R.string.restore_settings_toast,
+				R.string.restore_settings_error,
+				R.string.restore_confirm_overwrite_dialog_title) {
 			@Override
 			void run(final SharedPreferences preferences, final File settingsFile)
 					throws IOException {
-				OperationImpls.importPreferences(preferences, new FileInputStream(settingsFile));
+				OperationImpls.restorePreferences(preferences, new FileInputStream(settingsFile));
 			}
 		};
 		public final int toastTextId;
@@ -274,13 +275,13 @@ public class ImportExportSettingsActivity extends Activity {
 		}
 
 		/**
-		 * Does the import or export
+		 * Does the backup or restore
 		 *
-		 * @param preferences The preferences object to import into/export from
-		 * @param settingsFile The file to import from/export to
+		 * @param preferences The preferences object used to create the backup or restore into
+		 * @param settingsFile The file to backup to or restore from
 		 * @throws IOException if an IO error occurred during the operation
-		 * @see OperationImpls#importPreferences(SharedPreferences, InputStream)
-		 * @see OperationImpls#exportPreferences(SharedPreferences, OutputStream)
+		 * @see OperationImpls#restorePreferences(SharedPreferences, InputStream)
+		 * @see OperationImpls#backupPreferences(SharedPreferences, OutputStream)
 		 */
 		abstract void run(SharedPreferences preferences, File settingsFile) throws IOException;
 	}
@@ -322,22 +323,22 @@ public class ImportExportSettingsActivity extends Activity {
 	}
 
 	/**
-	 * Container for the code that does the actual importing/exporting
+	 * Container for the code that does the actual backing up and restoring
 	 */
 	private static class OperationImpls {
 
 		/**
 		 * Serialises a {@link SharedPreferences} object and writes it to an {@link OutputStream}.
 		 * The written preferences can be read back by
-		 * {@link #importPreferences(SharedPreferences, InputStream)}
+		 * {@link #restorePreferences(SharedPreferences, InputStream)}
 		 *
-		 * @param prefs The preferences that will be written
+		 * @param prefs The preferences that will be backed up
 		 * @param outputStream The stream that {@code prefs} will be written to. We close the stream
 		 * before this function returns
-		 * @throws IOException if an exception occurs
-		 * @see #importPreferences(SharedPreferences, InputStream)
+		 * @throws IOException if an IO error occurs
+		 * @see #restorePreferences(SharedPreferences, InputStream)
 		 */
-		public static void exportPreferences(SharedPreferences prefs, OutputStream outputStream)
+		public static void backupPreferences(SharedPreferences prefs, OutputStream outputStream)
 				throws IOException {
 			ObjectOutputStream output = null;
 			try {
@@ -352,16 +353,16 @@ public class ImportExportSettingsActivity extends Activity {
 
 		/**
 		 * Reads a {@link SharedPreferences} object that was previously serialised with {@link
-		 * #exportPreferences(SharedPreferences, OutputStream)}
+		 * #backupPreferences(SharedPreferences, OutputStream)}
 		 *
 		 * @param prefs The {@link SharedPreferences} object that will be populated with the
 		 * values read from {@code inputStream}
 		 * @param inputStream An {@link InputStream} that the preferences will be read from. The
 		 * stream will be closed when this function returns
 		 * @throws IOException if an IO error occurs
-		 * @see #exportPreferences(SharedPreferences, OutputStream)
+		 * @see #backupPreferences(SharedPreferences, OutputStream)
 		 */
-		public static void importPreferences(SharedPreferences prefs, InputStream inputStream)
+		public static void restorePreferences(SharedPreferences prefs, InputStream inputStream)
 				throws IOException {
 			SharedPreferences.Editor prefEdit = prefs.edit();
 			prefEdit.clear();
@@ -387,13 +388,13 @@ public class ImportExportSettingsActivity extends Activity {
 
 		/**
 		 * Deserialises a String->Object map that was previously serialised by
-		 * {@link #exportPreferences(SharedPreferences, OutputStream)}.
+		 * {@link #backupPreferences(SharedPreferences, OutputStream)}.
 		 *
 		 * @param inputStream The input stream that the map will be deserialised from. It will be
 		 * closed when this function returns
 		 * @return The deserialised map
 		 * @throws IOException if the map could not be deserialised from the input stream
-		 * @see #exportPreferences(SharedPreferences, OutputStream)
+		 * @see #backupPreferences(SharedPreferences, OutputStream)
 		 */
 		@SuppressWarnings("unchecked")
 		public static Map<String, Object> readPreferenceMap(InputStream inputStream) throws

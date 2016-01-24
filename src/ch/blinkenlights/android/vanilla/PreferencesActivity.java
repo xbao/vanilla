@@ -24,19 +24,16 @@
 package ch.blinkenlights.android.vanilla;
 
 import android.app.Activity;
-import android.app.AlertDialog.Builder;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.DialogInterface;
 import android.content.IntentFilter;
 import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
-import android.preference.PreferenceGroup;
 import android.preference.PreferenceScreen;
 import android.preference.CheckBoxPreference;
 import android.view.LayoutInflater;
@@ -64,12 +61,12 @@ public class PreferencesActivity extends PreferenceActivity {
 
 	/**
 	 * The receiver that's called when settings are imported from the backup file ({@link
-	 * ImportExportSettingsActivity#ACTION_SETTINGS_IMPORTED}).
+	 * BackupRestoreSettingsActivity#ACTION_SETTINGS_RESTORED}).
 	 *
 	 * We close the settings screen when the settings are updated externally to avoid needing to
 	 * have the settings screen update dynamically
 	 */
-	private BroadcastReceiver mSettingsImportedReceiver = new BroadcastReceiver() {
+	private BroadcastReceiver mSettingsRestoredReceiver = new BroadcastReceiver() {
 
 		@Override
 		public void onReceive(final Context context, final Intent intent) {
@@ -96,8 +93,8 @@ public class PreferencesActivity extends PreferenceActivity {
 		ThemeHelper.setTheme(this, R.style.BackActionBar);
 		super.onCreate(savedInstanceState);
 
-		registerReceiver(mSettingsImportedReceiver, new IntentFilter(ImportExportSettingsActivity
-				.ACTION_SETTINGS_IMPORTED));
+		registerReceiver(mSettingsRestoredReceiver, new IntentFilter(BackupRestoreSettingsActivity
+				.ACTION_SETTINGS_RESTORED));
 	}
 
 	@Override
@@ -110,7 +107,7 @@ public class PreferencesActivity extends PreferenceActivity {
 	public void onDestroy()
 	{
 		super.onDestroy();
-		unregisterReceiver(mSettingsImportedReceiver);
+		unregisterReceiver(mSettingsRestoredReceiver);
 	}
 
 	@Override
