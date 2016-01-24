@@ -322,6 +322,6 @@ THE SOFTWARE.
 	<string name="export_settings_toast">Settings exported</string>
 	<string name="import_settings_error">Error importing settings</string>
 	<string name="export_settings_error">Error exporting settings</string>
-	<string name="export_settings_terrible_failure">Failed to serialise settings. This is a bug,
-		please report it! <a href="https://github.com/vanilla-music/vanilla/issues"/></string>
+	<string name="import_confirm_overwrite_dialog_title">Overwrite current settings?</string>
+	<string name="export_confirm_overwrite_dialog_title">Overwrite existing file?</string>
 </resources>
