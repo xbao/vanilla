@@ -60,8 +60,7 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 			"vanilla_settings");
 	private View mImportButton;
 	private View mExportButton;
-	private CharSequence mStatusFormat;
-	private TextView mStateTextView;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 
@@ -72,17 +71,14 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 		mPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
 		TextView filePathTextView = (TextView) findViewById(R.id.file_path);
-		filePathTextView.setText(getString(R.string.import_export_settings_file, SETTINGS_FILE
-				.getPath()));
+		filePathTextView.setText(SETTINGS_FILE.getPath());
 
 		mImportButton = findViewById(R.id.import_settings);
 		mExportButton = findViewById(R.id.export_settings);
-		mStateTextView = (TextView) findViewById(R.id.file_state);
 
 		mImportButton.setOnClickListener(this);
 		mExportButton.setOnClickListener(this);
 
-		mStatusFormat = getString(R.string.import_export_settings_status);
 		updateFileState();
 	}
 
@@ -149,8 +145,7 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 	}
 
 	/**
-	 * Reads the settings from the file, updates the text content of {@link R.id#file_state}. See
-	 * {@link SettingsFileState} for the different states and their descriptions
+	 * Reads the settings from the file
 	 */
 	private void updateFileState() {
 
@@ -161,16 +156,14 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 		} catch (IOException e) {
 			// This is generic IO error (we didn't attempt any packing/unpacking)
 			e.printStackTrace();
-			mStateTextView.setText(R.string.settings_error_reading_file);
 			return;
 		}
 		onFileStateChange(settingsFileState);
 	}
 
 	private void onFileStateChange(SettingsFileState newState) {
-		mStateTextView.setText(String.format(mStatusFormat.toString(), getString(newState
-				.statusTextId)));
 		mImportButton.setEnabled(newState != SettingsFileState.DOES_NOT_EXIST);
+		mExportButton.setEnabled(newState == SettingsFileState.SAME_AS_CURRENT);
 	}
 
 	/**
@@ -265,27 +258,17 @@ public class ImportExportSettingsActivity extends Activity implements View.OnCli
 		/**
 		 * The settings file doesn't exist
 		 */
-		DOES_NOT_EXIST(R.string.settings_no_file),
+		DOES_NOT_EXIST,
 		/**
 		 * The settings file exists and contains settings that are identical to the current user's
 		 * settings
 		 */
-		SAME_AS_CURRENT(R.string.settings_file_same_as_current),
+		SAME_AS_CURRENT,
 		/**
 		 * The settings file exists and contains settings that are different from the current user's
 		 * settings
 		 */
-		DIFFERS_FROM_CURRENT(R.string.settings_file_differs_from_current);
-
-		/**
-		 * String resource id containing descriptive text of the state
-		 */
-		private final int statusTextId;
-
-		SettingsFileState(final int statusTextId) {
-
-			this.statusTextId = statusTextId;
-		}
+		DIFFERS_FROM_CURRENT;
 
 		private static SettingsFileState getState(File file, SharedPreferences current) throws IOException {
 			if (!file.exists()) {
