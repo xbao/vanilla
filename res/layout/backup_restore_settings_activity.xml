@@ -61,17 +61,17 @@
 		android:layout_marginRight="8dp"
 		android:orientation="vertical">
 		<Button
-			android:id="@+id/restore_settings"
-			style="?android:buttonBarButtonStyle"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="@string/restore_settings"/>
-		<Button
 			android:id="@+id/backup_settings"
 			style="?android:buttonBarButtonStyle"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
 			android:text="@string/backup_settings"/>
+		<Button
+			android:id="@+id/restore_settings"
+			style="?android:buttonBarButtonStyle"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="@string/restore_settings"/>
 	</LinearLayout>
 
 </LinearLayout>
