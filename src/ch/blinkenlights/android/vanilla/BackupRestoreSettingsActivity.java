@@ -207,7 +207,7 @@ public class BackupRestoreSettingsActivity extends Activity {
 	}
 
 	/**
-	 * Runs an backup/restore operation then updates the settings file state.
+	 * Runs a backup/restore operation then updates the settings file state.
 	 *
 	 * Failures are handled by {@link #onTerribleFailure(Operation, Throwable)}.
 	 *
@@ -252,7 +252,7 @@ public class BackupRestoreSettingsActivity extends Activity {
 			@Override
 			void run(final SharedPreferences preferences, final File settingsFile)
 					throws IOException {
-				OperationImpls.backupPreferences(preferences, new FileOutputStream(settingsFile));
+				OperationImpls.serialisePreferences(preferences, new FileOutputStream(settingsFile));
 			}
 		},
 		RESTORE(R.string.restore_settings_toast,
@@ -261,7 +261,7 @@ public class BackupRestoreSettingsActivity extends Activity {
 			@Override
 			void run(final SharedPreferences preferences, final File settingsFile)
 					throws IOException {
-				OperationImpls.restorePreferences(preferences, new FileInputStream(settingsFile));
+				OperationImpls.deserialisePreferences(preferences, new FileInputStream(settingsFile));
 			}
 		};
 		public final int toastTextId;
@@ -280,8 +280,8 @@ public class BackupRestoreSettingsActivity extends Activity {
 		 * @param preferences The preferences object used to create the backup or restore into
 		 * @param settingsFile The file to backup to or restore from
 		 * @throws IOException if an IO error occurred during the operation
-		 * @see OperationImpls#restorePreferences(SharedPreferences, InputStream)
-		 * @see OperationImpls#backupPreferences(SharedPreferences, OutputStream)
+		 * @see OperationImpls#deserialisePreferences(SharedPreferences, InputStream)
+		 * @see OperationImpls#serialisePreferences(SharedPreferences, OutputStream)
 		 */
 		abstract void run(SharedPreferences preferences, File settingsFile) throws IOException;
 	}
@@ -311,7 +311,7 @@ public class BackupRestoreSettingsActivity extends Activity {
 				return DOES_NOT_EXIST;
 			}
 
-			final Map<String, ?> stored = OperationImpls.readPreferenceMap(new FileInputStream
+			final Map<String, ?> stored = OperationImpls.deserialisePreferenceMap(new FileInputStream
 					(file));
 
 			if (stored.equals(current.getAll())) {
@@ -330,15 +330,15 @@ public class BackupRestoreSettingsActivity extends Activity {
 		/**
 		 * Serialises a {@link SharedPreferences} object and writes it to an {@link OutputStream}.
 		 * The written preferences can be read back by
-		 * {@link #restorePreferences(SharedPreferences, InputStream)}
+		 * {@link #deserialisePreferences(SharedPreferences, InputStream)}
 		 *
 		 * @param prefs The preferences that will be backed up
 		 * @param outputStream The stream that {@code prefs} will be written to. We close the stream
 		 * before this function returns
 		 * @throws IOException if an IO error occurs
-		 * @see #restorePreferences(SharedPreferences, InputStream)
+		 * @see #deserialisePreferences(SharedPreferences, InputStream)
 		 */
-		public static void backupPreferences(SharedPreferences prefs, OutputStream outputStream)
+		public static void serialisePreferences(SharedPreferences prefs, OutputStream outputStream)
 				throws IOException {
 			ObjectOutputStream output = null;
 			try {
@@ -352,21 +352,21 @@ public class BackupRestoreSettingsActivity extends Activity {
 		}
 
 		/**
-		 * Reads a {@link SharedPreferences} object that was previously serialised with {@link
-		 * #backupPreferences(SharedPreferences, OutputStream)}
+		 * Deserialises a {@link SharedPreferences} object that was previously serialised with
+		 * {@link #serialisePreferences(SharedPreferences, OutputStream)}
 		 *
 		 * @param prefs The {@link SharedPreferences} object that will be populated with the
 		 * values read from {@code inputStream}
 		 * @param inputStream An {@link InputStream} that the preferences will be read from. The
 		 * stream will be closed when this function returns
 		 * @throws IOException if an IO error occurs
-		 * @see #backupPreferences(SharedPreferences, OutputStream)
+		 * @see #serialisePreferences(SharedPreferences, OutputStream)
 		 */
-		public static void restorePreferences(SharedPreferences prefs, InputStream inputStream)
+		public static void deserialisePreferences(SharedPreferences prefs, InputStream inputStream)
 				throws IOException {
 			SharedPreferences.Editor prefEdit = prefs.edit();
 			prefEdit.clear();
-			Map<String, ?> entries = readPreferenceMap(inputStream);
+			Map<String, ?> entries = deserialisePreferenceMap(inputStream);
 			for (Map.Entry<String, ?> entry : entries.entrySet()) {
 				Object v = entry.getValue();
 				String key = entry.getKey();
@@ -388,16 +388,16 @@ public class BackupRestoreSettingsActivity extends Activity {
 
 		/**
 		 * Deserialises a String->Object map that was previously serialised by
-		 * {@link #backupPreferences(SharedPreferences, OutputStream)}.
+		 * {@link #serialisePreferences(SharedPreferences, OutputStream)}.
 		 *
 		 * @param inputStream The input stream that the map will be deserialised from. It will be
 		 * closed when this function returns
 		 * @return The deserialised map
 		 * @throws IOException if the map could not be deserialised from the input stream
-		 * @see #backupPreferences(SharedPreferences, OutputStream)
+		 * @see #serialisePreferences(SharedPreferences, OutputStream)
 		 */
 		@SuppressWarnings("unchecked")
-		public static Map<String, Object> readPreferenceMap(InputStream inputStream) throws
+		public static Map<String, Object> deserialisePreferenceMap(InputStream inputStream) throws
 				IOException {
 
 			ObjectInputStream input = null;
