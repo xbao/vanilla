@@ -79,6 +79,7 @@ public class ShowQueueActivity extends PlaybackActivity
 		menu.add(0, MENU_CLEAR_QUEUE, 0, R.string.dequeue_rest).setIcon(R.drawable.ic_menu_close_clear_cancel);
 		menu.add(0, MENU_EMPTY_QUEUE, 0, R.string.empty_the_queue);
 		menu.add(0, MENU_SAVE_AS_PLAYLIST, 0, R.string.save_as_playlist).setIcon(R.drawable.ic_menu_preferences);
+		menu.add(0, MENU_SORT, 0, R.string.sort_by);
 		return true;
 	}
 
@@ -102,10 +103,32 @@ public class ShowQueueActivity extends PlaybackActivity
 				PlaybackService.get(this).emptyQueue();
 				finish();
 				break;
+			case MENU_SORT:
+				onMenuSort();
+				break;
 			default:
 				return super.onOptionsItemSelected(item);
 		}
 		return true;
+	}
+
+	private void onMenuSort() {
+		final PlaybackService service = PlaybackService.get(this);
+		Limiter limiter = new Limiter(MediaUtils.TYPE_SONG, null, buildLimiterSelection(service));
+		final MediaAdapter adapter = new MediaAdapter(getApplicationContext(), MediaUtils.TYPE_SONG, limiter, null);
+
+		SortDialogHelper.createDialog(this, adapter, new SortDialogHelper.OnSortDialogDismissListener() {
+			@Override
+			public void onSortDialogDismissed(final DialogInterface dialog, final int sortMode) {
+				adapter.setSortMode(sortMode);
+				QueryTask queryTask = adapter.buildSongQuery(Song.FILLED_PROJECTION);
+				// Might need a new mode to replace the songs while keeping current song
+				// playing.
+				queryTask.mode = SongTimeline.MODE_PLAY;
+				service.setShuffleMode(SongTimeline.SHUFFLE_NONE);
+				service.runQuery(queryTask);
+			}
+		}).show();
 	}
 
 	/*
@@ -228,5 +251,23 @@ public class ShowQueueActivity extends PlaybackActivity
 	private void scrollToCurrentSong(int currentSongPosition){
 		mListView.setSelectionFromTop(currentSongPosition, 0); /* scroll to currently playing song */
 	}
-	
+
+	private static String buildLimiterSelection(PlaybackService service) {
+		StringBuilder limiterSelection = new StringBuilder();
+		limiterSelection.append("_id in (");
+		boolean firstTime = true;
+		for (int i = 0; ; i++) {
+			Song song = service.getSongByQueuePosition(i);
+			if (song == null)
+				break;
+			if (firstTime) {
+				firstTime = false;
+			} else {
+				limiterSelection.append(',');
+			}
+			limiterSelection.append(song.id);
+		}
+		limiterSelection.append(')');
+		return limiterSelection.toString();
+	}
 }
