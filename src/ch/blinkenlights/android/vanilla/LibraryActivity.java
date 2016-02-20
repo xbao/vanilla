@@ -28,21 +28,17 @@ import android.content.ContentResolver;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.ApplicationInfo;
-import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.PaintDrawable;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
 import android.support.iosched.tabs.VanillaTabLayout;
 import android.support.v4.view.ViewPager;
-import android.text.Editable;
 import android.text.TextUtils;
 import android.view.ContextMenu;
 import android.view.KeyEvent;
@@ -51,16 +47,9 @@ import android.view.MenuItem;
 import android.view.SubMenu;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewParent;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.HorizontalScrollView;
-import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
-import android.widget.RadioGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.SearchView;
 
 import java.io.File;
@@ -71,10 +60,8 @@ import junit.framework.Assert;
  */
 public class LibraryActivity
 	extends PlaybackActivity
-	implements DialogInterface.OnClickListener
-	         , DialogInterface.OnDismissListener
-	         , SearchView.OnQueryTextListener
-{
+	implements SortDialogHelper.OnSortDialogDismissListener
+	         , SearchView.OnQueryTextListener {
 
 
 	/**
@@ -823,34 +810,7 @@ public class LibraryActivity
 			return true;
 		case MENU_SORT: {
 			MediaAdapter adapter = (MediaAdapter)mCurrentAdapter;
-			int mode = adapter.getSortMode();
-			int check;
-			if (mode < 0) {
-				check = R.id.descending;
-				mode = ~mode;
-			} else {
-				check = R.id.ascending;
-			}
-
-			int[] itemIds = adapter.getSortEntries();
-			String[] items = new String[itemIds.length];
-			Resources res = getResources();
-			for (int i = itemIds.length; --i != -1; ) {
-				items[i] = res.getString(itemIds[i]);
-			}
-
-			RadioGroup header = (RadioGroup)getLayoutInflater().inflate(R.layout.sort_dialog, null);
-			header.check(check);
-
-			AlertDialog.Builder builder = new AlertDialog.Builder(this);
-			builder.setTitle(R.string.sort_by);
-			builder.setSingleChoiceItems(items, mode + 1, this); // add 1 for header
-			builder.setNeutralButton(R.string.done, null);
-
-			AlertDialog dialog = builder.create();
-			dialog.getListView().addHeaderView(header);
-			dialog.setOnDismissListener(this);
-			dialog.show();
+			SortDialogHelper.createDialog(this, adapter, this).show();
 			return true;
 		}
 		default:
@@ -935,23 +895,8 @@ public class LibraryActivity
 	}
 
 	@Override
-	public void onClick(DialogInterface dialog, int which)
-	{
-		dialog.dismiss();
-	}
-
-	@Override
-	public void onDismiss(DialogInterface dialog)
-	{
-		ListView list = ((AlertDialog)dialog).getListView();
-		// subtract 1 for header
-		int which = list.getCheckedItemPosition() - 1;
-
-		RadioGroup group = (RadioGroup)list.findViewById(R.id.sort_direction);
-		if (group.getCheckedRadioButtonId() == R.id.descending)
-			which = ~which;
-
-		mPagerAdapter.setSortMode(which);
+	public void onSortDialogDismissed(DialogInterface dialog, int sortMode) {
+		mPagerAdapter.setSortMode(sortMode);
 	}
 
 	/**
