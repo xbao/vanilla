@@ -247,6 +247,47 @@ public class MediaUtils {
 		return result;
 	}
 
+	public static QueryTask buildGenreExcludeEmptyQuery(String[] projection, String sort) {
+		/*
+		 * SELECT DISTINCT audio_genres._id AS _id, name
+		 * FROM audio_genres, audio_genres_map_noid
+		 * WHERE (audio_genres_map_noid.genre_id == audio_genres._id)
+		 * AND EXISTS(SELECT audio._id
+		 * 				FROM audio
+		 * 				WHERE audio_genres_map_noid.audio_id == audio._id)
+		 * ORDER BY name DESC
+		 */
+		Uri uri = MediaStore.Audio.Genres.getContentUri("external");
+		StringBuilder sql = new StringBuilder();
+		sql.append("DISTINCT ");
+		for (int i = 0; i < projection.length; i++) {
+			String projectedField = projection[i];
+			if(i != 0) {
+				sql.append(',');
+			}
+			if(projectedField.equals("_id")) {
+				sql.append("audio_genres._id AS _id");
+			} else {
+				sql.append(projectedField);
+			}
+		}
+		sql.append(" FROM audio_genres, audio_genres_map_noid ");
+		sql.append(" WHERE (audio_genres_map_noid.genre_id == audio_genres._id) AND " +
+						   "EXISTS(SELECT audio._id FROM audio WHERE audio_genres_map_noid.audio_id == " +
+						   "audio._id)");
+
+		if(!TextUtils.isEmpty(sort)) {
+			sql.append(" ORDER BY ").append(sort);
+		}
+		sql.append(" -- ");
+		String[] injectedProjection = new String[1];
+		injectedProjection[0] = sql.toString();
+
+		Log.d("MediaUtils", "[buildGenreExcludeEmptyQuery] injectedProjection=" +
+				injectedProjection[0]);
+		return new QueryTask(uri, injectedProjection, null, null, sort);
+	}
+
 	/**
 	 * Builds a query with the given information.
 	 *

@@ -300,6 +300,10 @@ public class MediaAdapter
 
 		String sort = String.format(sortStringRaw, sortDir);
 
+		if(mType == MediaUtils.TYPE_GENRE) {
+			return MediaUtils.buildGenreExcludeEmptyQuery(projection,sort);
+		}
+
 		if (returnSongs || mType == MediaUtils.TYPE_SONG)
 			selection.append(MediaStore.Audio.Media.IS_MUSIC+" AND length(_data)");
 
