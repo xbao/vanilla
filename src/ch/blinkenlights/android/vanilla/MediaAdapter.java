@@ -346,7 +346,7 @@ public class MediaAdapter
 			// into a list of collation keys. Otherwise, just split the
 			// constraint with no modification.
 			if (mFieldKeys != null) {
-				String colKey = MediaStore.Audio.keyFor(constraint);
+				String colKey = MediaStore.Audio.keyFor(constraint).replaceAll("\\s+", "");
 				String spaceColKey = DatabaseUtils.getCollationKey(" ");
 				needles = colKey.split(spaceColKey);
 				keySource = mFieldKeys;
